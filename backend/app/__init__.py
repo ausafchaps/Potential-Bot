@@ -1,0 +1,2 @@
+"""StudyBot backend application package."""
+

@@ -1,0 +1,31 @@
+[project]
+name = "studybot"
+version = "0.1.0"
+description = "Auditable AI study assistant backend."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "pydantic-settings>=2.8.0",
+    "sqlalchemy>=2.0.0",
+    "uvicorn[standard]>=0.34.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "httpx>=0.28.0",
+    "pytest>=8.0.0",
+    "ruff>=0.8.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["backend"]
+testpaths = ["backend/tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
