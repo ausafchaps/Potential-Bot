@@ -5,6 +5,7 @@ description = "Auditable AI study assistant backend."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "alembic>=1.14.0",
     "fastapi>=0.115.0",
     "pydantic-settings>=2.8.0",
     "sqlalchemy>=2.0.0",
@@ -28,4 +29,3 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
-

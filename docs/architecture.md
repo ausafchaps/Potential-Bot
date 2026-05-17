@@ -10,7 +10,7 @@ should be stored and inspected independently.
 
 - API layer: FastAPI routes, request validation, and response formatting
 - Core settings: environment-driven configuration
-- Data layer: SQLAlchemy engine and session management
+- Data layer: SQLAlchemy models, Alembic migrations, engine, and session management
 - Document ingestion: upload, parsing, chunking, and metadata
 - Retrieval: embeddings and cited evidence search
 - Answer orchestration: grounded answers using retrieved context
@@ -19,7 +19,7 @@ should be stored and inspected independently.
 
 ## First Implementation Boundary
 
-Milestone 1 only establishes the backend foundation:
+Milestone 1 established the backend foundation:
 
 - app construction
 - health check endpoint
@@ -27,3 +27,10 @@ Milestone 1 only establishes the backend foundation:
 - database session factory
 - test setup
 
+Milestone 2 starts the persistence model:
+
+- users
+- course workspaces
+- documents
+- document chunks
+- Alembic migrations
