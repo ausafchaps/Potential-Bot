@@ -42,3 +42,11 @@ Milestone 3 starts document ingestion:
 - deterministic character chunking
 - document status transitions
 - persisted document chunks
+
+Milestone 4 makes the core API flow usable:
+
+- create users
+- create course workspaces
+- list a user's courses
+- fetch users and courses by id
+- upload text documents to API-created courses
