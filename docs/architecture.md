@@ -34,3 +34,11 @@ Milestone 2 starts the persistence model:
 - documents
 - document chunks
 - Alembic migrations
+
+Milestone 3 starts document ingestion:
+
+- plain text upload
+- UTF-8 decoding
+- deterministic character chunking
+- document status transitions
+- persisted document chunks
