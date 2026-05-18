@@ -10,7 +10,18 @@ quality.
 
 ## Current Status
 
-Milestone 1 is underway: backend foundation.
+Backend MVP foundations are underway.
+
+Completed modules:
+
+- FastAPI backend foundation
+- SQLAlchemy and Alembic database foundation
+- core models for users, courses, documents, and document chunks
+- plain text document ingestion with deterministic chunking
+
+Current module:
+
+- user and course API foundation
 
 ## Planned Capabilities
 
@@ -22,6 +33,49 @@ Milestone 1 is underway: backend foundation.
 - Generate quizzes and flashcards
 - Track helpfulness feedback and usage metrics
 - Evaluate retrieval and answer quality
+
+## Current API Surface
+
+Health:
+
+- `GET /health`
+
+Users and courses:
+
+- `POST /users`
+- `GET /users/{user_id}`
+- `POST /users/{user_id}/courses`
+- `GET /users/{user_id}/courses`
+- `GET /courses/{course_id}`
+
+Documents:
+
+- `POST /courses/{course_id}/documents/text`
+
+The current flow is:
+
+```text
+create user -> create course -> upload text document -> persist chunks
+```
+
+Authentication, PDF parsing, embeddings, retrieval, grounded answers, quizzes,
+and flashcards are planned but not implemented yet.
+
+## Architecture Decisions
+
+Decision records live in `docs/decisions`.
+
+- `0001-backend-foundation.md`
+- `0002-database-foundation.md`
+- `0003-text-ingestion.md`
+- `0004-user-course-api.md`
+
+## Branch Workflow
+
+- `main` contains stable merged work
+- feature branches use `feature/<module-name>`
+- each module should include tests and docs when architecture changes
+- pull requests are merged into `main` after review
 
 ## Local Development
 
@@ -52,3 +106,14 @@ Run tests:
 pytest
 ```
 
+Run linting:
+
+```powershell
+ruff check .
+```
+
+Check Alembic model drift:
+
+```powershell
+alembic check
+```
