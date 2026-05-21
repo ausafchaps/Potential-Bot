@@ -18,10 +18,8 @@ Completed modules:
 - SQLAlchemy and Alembic database foundation
 - core models for users, courses, documents, and document chunks
 - plain text document ingestion with deterministic chunking
-
-Current module:
-
 - user and course API foundation
+- keyword retrieval foundation
 
 ## Planned Capabilities
 
@@ -52,14 +50,18 @@ Documents:
 
 - `POST /courses/{course_id}/documents/text`
 
+Retrieval:
+
+- `GET /courses/{course_id}/search?query={query}&limit={limit}`
+
 The current flow is:
 
 ```text
-create user -> create course -> upload text document -> persist chunks
+create user -> create course -> upload text document -> persist chunks -> search chunks
 ```
 
-Authentication, PDF parsing, embeddings, retrieval, grounded answers, quizzes,
-and flashcards are planned but not implemented yet.
+Retrieval is currently keyword-based. Authentication, PDF parsing, embeddings,
+grounded answers, quizzes, and flashcards are planned but not implemented yet.
 
 ## Architecture Decisions
 
@@ -69,6 +71,7 @@ Decision records live in `docs/decisions`.
 - `0002-database-foundation.md`
 - `0003-text-ingestion.md`
 - `0004-user-course-api.md`
+- `0005-retrieval-foundation.md`
 
 ## Branch Workflow
 

@@ -50,3 +50,11 @@ Milestone 4 makes the core API flow usable:
 - list a user's courses
 - fetch users and courses by id
 - upload text documents to API-created courses
+
+Milestone 5 starts retrieval:
+
+- course-scoped keyword search
+- query tokenization
+- term-frequency ranking
+- source metadata for future citations
+- retrieval tests for ranking and course isolation
