@@ -58,3 +58,11 @@ Milestone 5 starts retrieval:
 - term-frequency ranking
 - source metadata for future citations
 - retrieval tests for ranking and course isolation
+
+Milestone 6 expands ingestion:
+
+- shared ingestion helpers for text and PDF
+- text-based PDF extraction
+- page count metadata
+- page-numbered chunks
+- no OCR for scanned PDFs yet
