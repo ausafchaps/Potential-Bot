@@ -5,7 +5,7 @@ from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
 from app.models import Course, Document, DocumentChunk, DocumentStatus, User
-from app.services.text_ingestion import chunk_text, estimate_token_count
+from app.services.ingestion import chunk_text, estimate_token_count
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
@@ -151,4 +151,3 @@ def test_upload_text_document_marks_empty_text_as_failed() -> None:
         verify_db.close()
     finally:
         app.dependency_overrides.clear()
-

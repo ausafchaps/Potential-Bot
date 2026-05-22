@@ -8,6 +8,7 @@ class SearchResult(BaseModel):
     document_filename: str
     chunk_id: uuid.UUID
     chunk_index: int
+    page_number: int | None
     text: str
     score: int
     matched_terms: list[str]
@@ -19,4 +20,3 @@ class SearchResponse(BaseModel):
     course_id: uuid.UUID
     query: str
     results: list[SearchResult]
-

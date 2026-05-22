@@ -20,6 +20,7 @@ Completed modules:
 - plain text document ingestion with deterministic chunking
 - user and course API foundation
 - keyword retrieval foundation
+- text-based PDF ingestion with page metadata
 
 ## Planned Capabilities
 
@@ -49,6 +50,7 @@ Users and courses:
 Documents:
 
 - `POST /courses/{course_id}/documents/text`
+- `POST /courses/{course_id}/documents/pdf`
 
 Retrieval:
 
@@ -57,10 +59,11 @@ Retrieval:
 The current flow is:
 
 ```text
-create user -> create course -> upload text document -> persist chunks -> search chunks
+create user -> create course -> upload text/PDF document -> persist chunks -> search chunks
 ```
 
-Retrieval is currently keyword-based. Authentication, PDF parsing, embeddings,
+Retrieval is currently keyword-based. PDF ingestion supports text-based PDFs only;
+scanned/image PDFs need a later OCR pipeline. Authentication, embeddings,
 grounded answers, quizzes, and flashcards are planned but not implemented yet.
 
 ## Architecture Decisions
@@ -72,6 +75,7 @@ Decision records live in `docs/decisions`.
 - `0003-text-ingestion.md`
 - `0004-user-course-api.md`
 - `0005-retrieval-foundation.md`
+- `0006-pdf-ingestion.md`
 
 ## Branch Workflow
 

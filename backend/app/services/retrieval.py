@@ -24,6 +24,7 @@ class RankedChunk:
     document_filename: str
     chunk_id: uuid.UUID
     chunk_index: int
+    page_number: int | None
     text: str
     score: int
     matched_terms: list[str]
@@ -82,6 +83,7 @@ def search_course_chunks(
                 document_filename=document.filename,
                 chunk_id=chunk.id,
                 chunk_index=chunk.chunk_index,
+                page_number=chunk.page_number,
                 text=chunk.text,
                 score=score,
                 matched_terms=matched_terms,
@@ -92,4 +94,3 @@ def search_course_chunks(
         ranked_chunks,
         key=lambda result: (-result.score, result.document_filename, result.chunk_index),
     )[:limit]
-
