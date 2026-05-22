@@ -21,6 +21,7 @@ Completed modules:
 - user and course API foundation
 - keyword retrieval foundation
 - text-based PDF ingestion with page metadata
+- document management API
 
 ## Planned Capabilities
 
@@ -49,8 +50,12 @@ Users and courses:
 
 Documents:
 
+- `GET /courses/{course_id}/documents`
 - `POST /courses/{course_id}/documents/text`
 - `POST /courses/{course_id}/documents/pdf`
+- `GET /documents/{document_id}`
+- `GET /documents/{document_id}/chunks`
+- `DELETE /documents/{document_id}`
 
 Retrieval:
 
@@ -59,7 +64,11 @@ Retrieval:
 The current flow is:
 
 ```text
-create user -> create course -> upload text/PDF document -> persist chunks -> search chunks
+create user
+-> create course
+-> upload text/PDF document
+-> inspect documents/chunks
+-> search chunks
 ```
 
 Retrieval is currently keyword-based. PDF ingestion supports text-based PDFs only;
@@ -76,6 +85,7 @@ Decision records live in `docs/decisions`.
 - `0004-user-course-api.md`
 - `0005-retrieval-foundation.md`
 - `0006-pdf-ingestion.md`
+- `0007-document-management-api.md`
 
 ## Branch Workflow
 

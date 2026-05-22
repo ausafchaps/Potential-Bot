@@ -66,3 +66,10 @@ Milestone 6 expands ingestion:
 - page count metadata
 - page-numbered chunks
 - no OCR for scanned PDFs yet
+
+Milestone 7 adds document management:
+
+- list documents for a course
+- inspect document summaries
+- inspect extracted chunks
+- delete documents and their chunks
