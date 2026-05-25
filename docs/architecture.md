@@ -73,3 +73,12 @@ Milestone 7 adds document management:
 - inspect document summaries
 - inspect extracted chunks
 - delete documents and their chunks
+
+Milestone 8 starts grounded answers:
+
+- course-scoped question endpoint
+- question, answer, and citation persistence
+- provider interface for LLMs
+- deterministic fake LLM provider
+- prompt construction from retrieved chunks
+- structured citations
