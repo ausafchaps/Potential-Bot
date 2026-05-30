@@ -1,6 +1,7 @@
 """SQLAlchemy models package."""
 
 from app.models.answer import Answer, AnswerStatus
+from app.models.answer_feedback import AnswerFeedback
 from app.models.citation import Citation
 from app.models.course import Course
 from app.models.document import Document, DocumentStatus
@@ -10,6 +11,7 @@ from app.models.user import User
 
 __all__ = [
     "Answer",
+    "AnswerFeedback",
     "AnswerStatus",
     "Citation",
     "Course",

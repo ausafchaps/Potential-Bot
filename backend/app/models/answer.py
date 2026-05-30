@@ -10,6 +10,7 @@ from app.db.base import Base
 from app.models.base import TimestampMixin, UUIDPrimaryKeyMixin
 
 if TYPE_CHECKING:
+    from app.models.answer_feedback import AnswerFeedback
     from app.models.citation import Citation
     from app.models.question import Question
 
@@ -47,4 +48,7 @@ class Answer(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         cascade="all, delete-orphan",
         order_by="Citation.position",
     )
-
+    feedback_events: Mapped[list["AnswerFeedback"]] = relationship(
+        back_populates="answer",
+        cascade="all, delete-orphan",
+    )
