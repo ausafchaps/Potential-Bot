@@ -22,6 +22,7 @@ Completed modules:
 - keyword retrieval foundation
 - text-based PDF ingestion with page metadata
 - document management API
+- grounded answer orchestrator with fake LLM provider
 
 ## Planned Capabilities
 
@@ -61,6 +62,10 @@ Retrieval:
 
 - `GET /courses/{course_id}/search?query={query}&limit={limit}`
 
+Questions:
+
+- `POST /courses/{course_id}/questions`
+
 The current flow is:
 
 ```text
@@ -69,11 +74,14 @@ create user
 -> upload text/PDF document
 -> inspect documents/chunks
 -> search chunks
+-> ask grounded questions with fake LLM answers
 ```
 
 Retrieval is currently keyword-based. PDF ingestion supports text-based PDFs only;
-scanned/image PDFs need a later OCR pipeline. Authentication, embeddings,
-grounded answers, quizzes, and flashcards are planned but not implemented yet.
+scanned/image PDFs need a later OCR pipeline. Answers currently use a
+deterministic fake LLM provider through a provider interface. Authentication,
+real LLM providers, embeddings, quizzes, and flashcards are planned but not
+implemented yet.
 
 ## Architecture Decisions
 
@@ -86,6 +94,7 @@ Decision records live in `docs/decisions`.
 - `0005-retrieval-foundation.md`
 - `0006-pdf-ingestion.md`
 - `0007-document-management-api.md`
+- `0008-grounded-answer-orchestrator.md`
 
 ## Branch Workflow
 

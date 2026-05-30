@@ -20,10 +20,13 @@ def test_core_tables_are_declared() -> None:
     inspector = inspect(engine)
 
     assert set(inspector.get_table_names()) == {
+        "answers",
+        "citations",
         "users",
         "courses",
         "documents",
         "document_chunks",
+        "questions",
     }
 
 
@@ -59,4 +62,3 @@ def test_user_course_document_chunk_relationships() -> None:
     assert saved_user.courses[0].documents[0].chunks[0].text == chunk.text
 
     session.close()
-
