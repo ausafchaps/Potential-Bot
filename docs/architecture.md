@@ -89,3 +89,10 @@ Milestone 9 starts answer quality feedback:
 - 1-5 helpfulness rating
 - optional comments
 - answer-level quality signal for future analytics
+
+Milestone 10 adds answer history:
+
+- list course questions
+- inspect question answers
+- inspect answer citations and feedback
+- summarize feedback counts and average rating
