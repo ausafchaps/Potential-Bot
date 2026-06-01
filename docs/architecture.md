@@ -82,3 +82,10 @@ Milestone 8 starts grounded answers:
 - deterministic fake LLM provider
 - prompt construction from retrieved chunks
 - structured citations
+
+Milestone 9 starts answer quality feedback:
+
+- answer feedback events
+- 1-5 helpfulness rating
+- optional comments
+- answer-level quality signal for future analytics

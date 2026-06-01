@@ -23,6 +23,7 @@ Completed modules:
 - text-based PDF ingestion with page metadata
 - document management API
 - grounded answer orchestrator with fake LLM provider
+- answer feedback API
 
 ## Planned Capabilities
 
@@ -66,6 +67,10 @@ Questions:
 
 - `POST /courses/{course_id}/questions`
 
+Answer feedback:
+
+- `POST /answers/{answer_id}/feedback`
+
 The current flow is:
 
 ```text
@@ -75,6 +80,7 @@ create user
 -> inspect documents/chunks
 -> search chunks
 -> ask grounded questions with fake LLM answers
+-> rate answer helpfulness
 ```
 
 Retrieval is currently keyword-based. PDF ingestion supports text-based PDFs only;
@@ -95,6 +101,7 @@ Decision records live in `docs/decisions`.
 - `0006-pdf-ingestion.md`
 - `0007-document-management-api.md`
 - `0008-grounded-answer-orchestrator.md`
+- `0009-answer-feedback-api.md`
 
 ## Branch Workflow
 
