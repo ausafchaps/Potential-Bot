@@ -25,6 +25,7 @@ Completed modules:
 - grounded answer orchestrator with fake LLM provider
 - answer feedback API
 - answer history API
+- admin metrics API
 
 ## Planned Capabilities
 
@@ -80,6 +81,10 @@ Answer history:
 - `GET /answers/{answer_id}/citations`
 - `GET /answers/{answer_id}/feedback`
 
+Admin:
+
+- `GET /admin/metrics`
+
 The current flow is:
 
 ```text
@@ -91,6 +96,7 @@ create user
 -> ask grounded questions with fake LLM answers
 -> rate answer helpfulness
 -> review answer history
+-> inspect admin metrics
 ```
 
 Retrieval is currently keyword-based. PDF ingestion supports text-based PDFs only;
@@ -113,6 +119,7 @@ Decision records live in `docs/decisions`.
 - `0008-grounded-answer-orchestrator.md`
 - `0009-answer-feedback-api.md`
 - `0010-answer-history-api.md`
+- `0011-admin-metrics-api.md`
 
 ## Branch Workflow
 
