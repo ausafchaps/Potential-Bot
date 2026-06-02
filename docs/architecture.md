@@ -96,3 +96,10 @@ Milestone 10 adds answer history:
 - inspect question answers
 - inspect answer citations and feedback
 - summarize feedback counts and average rating
+
+Milestone 11 adds admin metrics:
+
+- usage counts
+- document status and type breakdowns
+- answer status and citation coverage
+- feedback averages and rating distribution
