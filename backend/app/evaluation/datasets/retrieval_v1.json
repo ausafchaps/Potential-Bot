@@ -1,0 +1,166 @@
+{
+  "name": "retrieval_v1",
+  "description": "Small keyword-retrieval baseline for StudyBot course material search.",
+  "cases": [
+    {
+      "id": "binary_search_exact_match",
+      "query": "binary search halves sorted array",
+      "top_k": 3,
+      "documents": [
+        {
+          "filename": "binary-search.txt",
+          "chunks": [
+            {
+              "text": "Binary search halves a sorted array repeatedly until it finds the target value."
+            }
+          ]
+        },
+        {
+          "filename": "linear-search.txt",
+          "chunks": [
+            {
+              "text": "Linear search checks each element one by one until it finds the target value."
+            }
+          ]
+        }
+      ],
+      "expected_results": [
+        {
+          "filename": "binary-search.txt",
+          "chunk_index": 0
+        }
+      ]
+    },
+    {
+      "id": "term_frequency_ranking",
+      "query": "graph search",
+      "top_k": 1,
+      "documents": [
+        {
+          "filename": "graph-search.txt",
+          "chunks": [
+            {
+              "text": "Graph search explores graph nodes. Breadth-first search is a graph search strategy."
+            }
+          ]
+        },
+        {
+          "filename": "tree-traversal.txt",
+          "chunks": [
+            {
+              "text": "Tree traversal can use depth-first search to visit branches."
+            }
+          ]
+        }
+      ],
+      "expected_results": [
+        {
+          "filename": "graph-search.txt",
+          "chunk_index": 0
+        }
+      ]
+    },
+    {
+      "id": "pdf_page_metadata_match",
+      "query": "recursion base case",
+      "top_k": 3,
+      "documents": [
+        {
+          "filename": "lecture-recursion.pdf",
+          "content_type": "application/pdf",
+          "chunks": [
+            {
+              "text": "Recursive functions call themselves to solve smaller versions of a problem.",
+              "page_number": 1
+            },
+            {
+              "text": "A recursion base case stops repeated calls and prevents infinite recursion.",
+              "page_number": 2
+            }
+          ]
+        }
+      ],
+      "expected_results": [
+        {
+          "filename": "lecture-recursion.pdf",
+          "chunk_index": 1,
+          "page_number": 2
+        }
+      ]
+    },
+    {
+      "id": "course_distractor_document",
+      "query": "photosynthesis chemical energy",
+      "top_k": 2,
+      "documents": [
+        {
+          "filename": "biology.txt",
+          "chunks": [
+            {
+              "text": "Photosynthesis converts light energy into chemical energy stored in glucose."
+            }
+          ]
+        },
+        {
+          "filename": "chemistry.txt",
+          "chunks": [
+            {
+              "text": "Chemical bonds store energy in molecules and compounds."
+            }
+          ]
+        }
+      ],
+      "expected_results": [
+        {
+          "filename": "biology.txt",
+          "chunk_index": 0
+        }
+      ]
+    },
+    {
+      "id": "no_matching_material",
+      "query": "quantum tunneling",
+      "top_k": 3,
+      "documents": [
+        {
+          "filename": "algorithms.txt",
+          "chunks": [
+            {
+              "text": "Stacks are last-in first-out structures used by many algorithms."
+            }
+          ]
+        }
+      ],
+      "expected_results": []
+    },
+    {
+      "id": "keyword_synonym_limitation",
+      "query": "rapid retrieval ordered list",
+      "top_k": 3,
+      "documents": [
+        {
+          "filename": "binary-search.txt",
+          "chunks": [
+            {
+              "text": "Binary search quickly finds values in a sorted array by halving the search space."
+            }
+          ]
+        },
+        {
+          "filename": "hash-table.txt",
+          "chunks": [
+            {
+              "text": "Hash tables provide lookup by mapping keys to array locations."
+            }
+          ]
+        }
+      ],
+      "expected_results": [
+        {
+          "filename": "binary-search.txt",
+          "chunk_index": 0
+        }
+      ]
+    }
+  ]
+}
