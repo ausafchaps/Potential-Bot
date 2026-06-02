@@ -103,3 +103,12 @@ Milestone 11 adds admin metrics:
 - document status and type breakdowns
 - answer status and citation coverage
 - feedback averages and rating distribution
+
+Milestone 12 starts retrieval evaluation:
+
+- bundled retrieval eval dataset
+- in-memory seeding of eval courses, documents, and chunks
+- hit at k
+- mean reciprocal rank
+- precision at k
+- failed-case summaries for keyword retrieval limitations

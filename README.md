@@ -26,6 +26,7 @@ Completed modules:
 - answer feedback API
 - answer history API
 - admin metrics API
+- retrieval evaluation foundation
 
 ## Planned Capabilities
 
@@ -97,12 +98,15 @@ create user
 -> rate answer helpfulness
 -> review answer history
 -> inspect admin metrics
+-> evaluate retrieval quality
 ```
 
 Retrieval is currently keyword-based. PDF ingestion supports text-based PDFs only;
 scanned/image PDFs need a later OCR pipeline. Answers currently use a
-deterministic fake LLM provider through a provider interface. Authentication,
-real LLM providers, embeddings, quizzes, and flashcards are planned but not
+deterministic fake LLM provider through a provider interface. Retrieval
+evaluation uses a small bundled dataset to measure the current keyword baseline
+with hit rate, mean reciprocal rank, and precision at k. Authentication, real
+LLM providers, embeddings, quizzes, and flashcards are planned but not
 implemented yet.
 
 ## Architecture Decisions
@@ -120,6 +124,7 @@ Decision records live in `docs/decisions`.
 - `0009-answer-feedback-api.md`
 - `0010-answer-history-api.md`
 - `0011-admin-metrics-api.md`
+- `0012-retrieval-evaluation-foundation.md`
 
 ## Branch Workflow
 
