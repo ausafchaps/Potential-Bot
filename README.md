@@ -27,6 +27,7 @@ Completed modules:
 - answer history API
 - admin metrics API
 - retrieval evaluation foundation
+- real LLM provider integration with Groq
 
 ## Planned Capabilities
 
@@ -99,15 +100,35 @@ create user
 -> review answer history
 -> inspect admin metrics
 -> evaluate retrieval quality
+-> optionally generate real Groq answers
 ```
 
 Retrieval is currently keyword-based. PDF ingestion supports text-based PDFs only;
 scanned/image PDFs need a later OCR pipeline. Answers currently use a
 deterministic fake LLM provider through a provider interface. Retrieval
 evaluation uses a small bundled dataset to measure the current keyword baseline
-with hit rate, mean reciprocal rank, and precision at k. Authentication, real
-LLM providers, embeddings, quizzes, and flashcards are planned but not
-implemented yet.
+with hit rate, mean reciprocal rank, and precision at k. Authentication,
+embeddings, quizzes, and flashcards are planned but not implemented yet.
+
+## LLM Providers
+
+StudyBot uses a provider interface for answer generation. The default provider is
+deterministic and free:
+
+```powershell
+LLM_PROVIDER=fake
+```
+
+To use Groq for real answers, set:
+
+```powershell
+LLM_PROVIDER=groq
+GROQ_API_KEY=your-api-key
+LLM_MODEL=llama-3.1-8b-instant
+```
+
+`LLM_API_KEY` can also be used instead of `GROQ_API_KEY`. Tests do not call real
+provider APIs.
 
 ## Architecture Decisions
 
@@ -125,6 +146,7 @@ Decision records live in `docs/decisions`.
 - `0010-answer-history-api.md`
 - `0011-admin-metrics-api.md`
 - `0012-retrieval-evaluation-foundation.md`
+- `0013-real-llm-provider-integration.md`
 
 ## Branch Workflow
 

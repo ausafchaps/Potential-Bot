@@ -7,6 +7,12 @@ class Settings(BaseSettings):
     app_name: str = "StudyBot"
     environment: str = "local"
     database_url: str = "sqlite:///./studybot.db"
+    llm_provider: str = "fake"
+    llm_model: str = "llama-3.1-8b-instant"
+    llm_api_key: str | None = None
+    groq_api_key: str | None = None
+    llm_base_url: str = "https://api.groq.com/openai/v1"
+    llm_timeout_seconds: float = 30.0
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -21,4 +27,3 @@ def get_settings() -> Settings:
 
 
 settings = get_settings()
-
