@@ -28,6 +28,7 @@ Completed modules:
 - admin metrics API
 - retrieval evaluation foundation
 - real LLM provider integration with Groq
+- vector retrieval foundation with deterministic fake embeddings
 
 ## Planned Capabilities
 
@@ -66,6 +67,7 @@ Documents:
 Retrieval:
 
 - `GET /courses/{course_id}/search?query={query}&limit={limit}`
+- `GET /courses/{course_id}/search/vector?query={query}&limit={limit}`
 
 Questions:
 
@@ -95,6 +97,7 @@ create user
 -> upload text/PDF document
 -> inspect documents/chunks
 -> search chunks
+-> semantically search chunks with fake embeddings
 -> ask grounded questions with fake LLM answers
 -> rate answer helpfulness
 -> review answer history
@@ -103,12 +106,15 @@ create user
 -> optionally generate real Groq answers
 ```
 
-Retrieval is currently keyword-based. PDF ingestion supports text-based PDFs only;
-scanned/image PDFs need a later OCR pipeline. Answers currently use a
-deterministic fake LLM provider through a provider interface. Retrieval
-evaluation uses a small bundled dataset to measure the current keyword baseline
-with hit rate, mean reciprocal rank, and precision at k. Authentication,
-embeddings, quizzes, and flashcards are planned but not implemented yet.
+Retrieval supports keyword search and a vector-search foundation with persisted
+chunk embeddings. The current embedding provider is deterministic and local, so
+the vector path is useful for architecture and tests before real embedding APIs
+or `pgvector`. PDF ingestion supports text-based PDFs only; scanned/image PDFs
+need a later OCR pipeline. Answers currently use a deterministic fake LLM
+provider through a provider interface. Retrieval evaluation uses a small bundled
+dataset to measure the current keyword baseline with hit rate, mean reciprocal
+rank, and precision at k. Authentication, real embedding providers, quizzes, and
+flashcards are planned but not implemented yet.
 
 ## LLM Providers
 
@@ -147,6 +153,7 @@ Decision records live in `docs/decisions`.
 - `0011-admin-metrics-api.md`
 - `0012-retrieval-evaluation-foundation.md`
 - `0013-real-llm-provider-integration.md`
+- `0014-vector-retrieval-foundation.md`
 
 ## Branch Workflow
 
