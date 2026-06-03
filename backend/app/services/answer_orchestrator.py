@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Answer, AnswerStatus, Citation, Question
 from app.services.llm.base import LLMProvider, LLMRequest
-from app.services.llm.fake import FakeLLMProvider
+from app.services.llm.factory import get_llm_provider
 from app.services.retrieval import RankedChunk, search_course_chunks
 
 
@@ -45,7 +45,7 @@ def answer_course_question(
     limit: int = 5,
     provider: LLMProvider | None = None,
 ) -> GroundedAnswerResult:
-    provider = provider or FakeLLMProvider()
+    provider = provider or get_llm_provider()
     retrieved_chunks = search_course_chunks(
         db,
         course_id=course_id,

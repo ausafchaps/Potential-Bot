@@ -112,3 +112,11 @@ Milestone 12 starts retrieval evaluation:
 - mean reciprocal rank
 - precision at k
 - failed-case summaries for keyword retrieval limitations
+
+Milestone 13 adds real LLM provider integration:
+
+- provider factory driven by environment settings
+- fake provider remains the default
+- Groq provider using OpenAI-compatible chat completions
+- provider configuration and runtime errors surfaced through the question API
+- mocked HTTP tests for provider request and response handling

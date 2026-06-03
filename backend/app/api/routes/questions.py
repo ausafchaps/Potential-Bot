@@ -12,6 +12,7 @@ from app.schemas.question import (
     RetrievedChunkResponse,
 )
 from app.services.answer_orchestrator import answer_course_question
+from app.services.llm.base import LLMProviderConfigurationError, LLMProviderError
 from app.services.retrieval import CourseNotFoundError, EmptySearchQueryError
 
 router = APIRouter(prefix="/courses/{course_id}/questions", tags=["questions"])
@@ -35,6 +36,16 @@ def ask_course_question_endpoint(
     except EmptySearchQueryError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+    except LLMProviderConfigurationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+    except LLMProviderError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
             detail=str(exc),
         ) from exc
 

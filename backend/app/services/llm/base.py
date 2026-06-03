@@ -16,9 +16,16 @@ class LLMResponse:
     text: str
 
 
+class LLMProviderConfigurationError(ValueError):
+    pass
+
+
+class LLMProviderError(RuntimeError):
+    pass
+
+
 class LLMProvider(Protocol):
     provider_name: str
 
     def generate_answer(self, request: LLMRequest) -> LLMResponse:
         pass
-
