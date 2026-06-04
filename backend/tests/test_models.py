@@ -1,7 +1,14 @@
 import uuid
 
 from app.db.base import Base
-from app.models import Course, Document, DocumentChunk, DocumentStatus, User
+from app.models import (
+    Course,
+    Document,
+    DocumentChunk,
+    DocumentChunkEmbedding,
+    DocumentStatus,
+    User,
+)
 from sqlalchemy import create_engine, inspect, select
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -27,6 +34,7 @@ def test_core_tables_are_declared() -> None:
         "courses",
         "documents",
         "document_chunks",
+        "document_chunk_embeddings",
         "questions",
     }
 
@@ -50,6 +58,13 @@ def test_user_course_document_chunk_relationships() -> None:
         page_number=3,
         token_count=9,
     )
+    embedding = DocumentChunkEmbedding(
+        chunk=chunk,
+        provider="fake",
+        model="fake-token-hash-v1",
+        dimensions=24,
+        vector_json="[1.0,0.0]",
+    )
 
     session.add(user)
     session.commit()
@@ -61,5 +76,6 @@ def test_user_course_document_chunk_relationships() -> None:
     assert saved_user.courses[0].title == "Algorithms"
     assert saved_user.courses[0].documents[0].status == DocumentStatus.completed
     assert saved_user.courses[0].documents[0].chunks[0].text == chunk.text
+    assert saved_user.courses[0].documents[0].chunks[0].embeddings[0].id == embedding.id
 
     session.close()

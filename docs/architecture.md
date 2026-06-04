@@ -120,3 +120,12 @@ Milestone 13 adds real LLM provider integration:
 - Groq provider using OpenAI-compatible chat completions
 - provider configuration and runtime errors surfaced through the question API
 - mocked HTTP tests for provider request and response handling
+
+Milestone 14 starts vector retrieval:
+
+- persisted document chunk embeddings
+- deterministic fake embedding provider
+- lazy embedding creation for completed course chunks
+- cosine similarity ranking
+- course-scoped vector search endpoint
+- SQLite-compatible vector storage before `pgvector`

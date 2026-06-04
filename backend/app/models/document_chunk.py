@@ -10,6 +10,7 @@ from app.models.base import CreatedAtMixin, UUIDPrimaryKeyMixin
 
 if TYPE_CHECKING:
     from app.models.document import Document
+    from app.models.document_chunk_embedding import DocumentChunkEmbedding
 
 
 class DocumentChunk(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
@@ -30,3 +31,7 @@ class DocumentChunk(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     token_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     document: Mapped["Document"] = relationship(back_populates="chunks")
+    embeddings: Mapped[list["DocumentChunkEmbedding"]] = relationship(
+        back_populates="chunk",
+        cascade="all, delete-orphan",
+    )
