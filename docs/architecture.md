@@ -129,3 +129,12 @@ Milestone 14 starts vector retrieval:
 - cosine similarity ranking
 - course-scoped vector search endpoint
 - SQLite-compatible vector storage before `pgvector`
+
+Milestone 15 starts hybrid retrieval:
+
+- course-scoped hybrid search endpoint
+- keyword and vector candidate merging by chunk id
+- normalized keyword and vector scores
+- weighted hybrid score
+- retrieval source metadata for explainability
+- answer orchestration still uses keyword retrieval until hybrid is evaluated
