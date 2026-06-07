@@ -146,3 +146,11 @@ Milestone 16 expands retrieval evaluation:
 - per-mode hit at k, mean reciprocal rank, and precision at k
 - best-mode summaries by metric
 - per-case mode results that expose retrieval tradeoffs
+
+Milestone 17 switches grounded answers to hybrid retrieval:
+
+- answer orchestration uses hybrid retrieval for evidence
+- public question response shape remains unchanged
+- hybrid chunks are adapted into grounded evidence chunks for prompts and citations
+- low-confidence hybrid results are filtered before answer generation
+- insufficient-evidence responses remain supported

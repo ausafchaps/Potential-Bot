@@ -99,6 +99,40 @@ def test_question_endpoint_returns_fake_grounded_answer_with_citations() -> None
         app.dependency_overrides.clear()
 
 
+def test_question_endpoint_uses_hybrid_retrieval_for_semantic_matches() -> None:
+    client = build_client()
+
+    try:
+        course_id = create_course(client)
+        upload_text(
+            client,
+            course_id,
+            b"Binary search quickly finds values in a sorted array.",
+        )
+
+        response = client.post(
+            f"/courses/{course_id}/questions",
+            json={
+                "question": "What method supports rapid retrieval from an ordered list?",
+                "limit": 3,
+            },
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["status"] == "answered"
+        assert payload["answer"] == (
+            "Based on the provided study material: "
+            "Binary search quickly finds values in a sorted array. [1]"
+        )
+        assert len(payload["citations"]) == 1
+        assert "Binary search quickly" in payload["citations"][0]["text"]
+        assert len(payload["retrieved_chunks"]) == 1
+        assert payload["retrieved_chunks"][0]["score"] > 0
+    finally:
+        app.dependency_overrides.clear()
+
+
 def test_question_endpoint_returns_insufficient_evidence_without_citations() -> None:
     client = build_client()
 
