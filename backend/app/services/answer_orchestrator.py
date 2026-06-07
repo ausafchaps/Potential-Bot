@@ -4,9 +4,11 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session
 
 from app.models import Answer, AnswerStatus, Citation, Question
+from app.services.hybrid_retrieval import HybridRankedChunk, search_course_chunks_by_hybrid
 from app.services.llm.base import LLMProvider, LLMRequest
 from app.services.llm.factory import get_llm_provider
-from app.services.retrieval import RankedChunk, search_course_chunks
+
+MIN_GROUNDED_HYBRID_SCORE = 0.25
 
 
 @dataclass(frozen=True)
@@ -15,10 +17,22 @@ class GroundedAnswerResult:
     question: Question
     answer: Answer
     citations: list[Citation]
-    retrieved_chunks: list[RankedChunk]
+    retrieved_chunks: list["GroundedEvidenceChunk"]
 
 
-def build_grounded_prompt(question: str, chunks: list[RankedChunk]) -> str:
+@dataclass(frozen=True)
+class GroundedEvidenceChunk:
+    document_id: uuid.UUID
+    document_filename: str
+    chunk_id: uuid.UUID
+    chunk_index: int
+    page_number: int | None
+    text: str
+    score: int
+    matched_terms: list[str]
+
+
+def build_grounded_prompt(question: str, chunks: list[GroundedEvidenceChunk]) -> str:
     context_lines = []
     for index, chunk in enumerate(chunks, start=1):
         page = f", page {chunk.page_number}" if chunk.page_number is not None else ""
@@ -46,7 +60,7 @@ def answer_course_question(
     provider: LLMProvider | None = None,
 ) -> GroundedAnswerResult:
     provider = provider or get_llm_provider()
-    retrieved_chunks = search_course_chunks(
+    retrieved_chunks = get_grounded_evidence_chunks(
         db,
         course_id=course_id,
         query=question_text,
@@ -118,4 +132,37 @@ def answer_course_question(
         answer=answer,
         citations=citations,
         retrieved_chunks=retrieved_chunks,
+    )
+
+
+def get_grounded_evidence_chunks(
+    db: Session,
+    *,
+    course_id: uuid.UUID,
+    query: str,
+    limit: int,
+) -> list[GroundedEvidenceChunk]:
+    hybrid_results = search_course_chunks_by_hybrid(
+        db,
+        course_id=course_id,
+        query=query,
+        limit=limit,
+    )
+    return [
+        adapt_hybrid_chunk_for_grounding(result)
+        for result in hybrid_results
+        if result.hybrid_score >= MIN_GROUNDED_HYBRID_SCORE
+    ]
+
+
+def adapt_hybrid_chunk_for_grounding(result: HybridRankedChunk) -> GroundedEvidenceChunk:
+    return GroundedEvidenceChunk(
+        document_id=result.document_id,
+        document_filename=result.document_filename,
+        chunk_id=result.chunk_id,
+        chunk_index=result.chunk_index,
+        page_number=result.page_number,
+        text=result.text,
+        score=round(result.hybrid_score * 1_000),
+        matched_terms=result.matched_terms,
     )

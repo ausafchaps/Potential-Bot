@@ -31,6 +31,7 @@ Completed modules:
 - vector retrieval foundation with deterministic fake embeddings
 - hybrid retrieval foundation
 - retrieval evaluation comparison across keyword, vector, and hybrid search
+- hybrid retrieval for grounded answers
 
 ## Planned Capabilities
 
@@ -102,7 +103,7 @@ create user
 -> search chunks
 -> semantically search chunks with fake embeddings
 -> search chunks with hybrid keyword/vector ranking
--> ask grounded questions with fake LLM answers
+-> ask grounded questions with hybrid-retrieved evidence
 -> rate answer helpfulness
 -> review answer history
 -> inspect admin metrics
@@ -116,10 +117,11 @@ embedding provider is deterministic and local, so the vector path is useful for
 architecture and tests before real embedding APIs or `pgvector`. PDF ingestion
 supports text-based PDFs only; scanned/image PDFs need a later OCR pipeline.
 Answers currently use a deterministic fake LLM provider through a provider
-interface. Retrieval evaluation uses a small bundled dataset to measure the
-keyword, vector, and hybrid paths with hit rate, mean reciprocal rank, and
-precision at k. Authentication, real embedding providers, quizzes, and
-flashcards are planned but not implemented yet.
+interface, and grounded answers use hybrid retrieval for evidence. Retrieval
+evaluation uses a small bundled dataset to measure the keyword, vector, and
+hybrid paths with hit rate, mean reciprocal rank, and precision at k.
+Authentication, real embedding providers, quizzes, and flashcards are planned
+but not implemented yet.
 
 ## LLM Providers
 
@@ -161,6 +163,7 @@ Decision records live in `docs/decisions`.
 - `0014-vector-retrieval-foundation.md`
 - `0015-hybrid-retrieval-foundation.md`
 - `0016-retrieval-eval-comparison.md`
+- `0017-hybrid-grounded-answers.md`
 
 ## Branch Workflow
 
