@@ -2,14 +2,22 @@ import json
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from sqlalchemy.orm import Session
 
 from app.models import Course, Document, DocumentChunk, DocumentStatus, User
-from app.services.retrieval import RankedChunk, search_course_chunks
+from app.services.hybrid_retrieval import search_course_chunks_by_hybrid
+from app.services.retrieval import search_course_chunks
+from app.services.vector_retrieval import search_course_chunks_by_vector
 
 DEFAULT_RETRIEVAL_DATASET_PATH = Path(__file__).parent / "datasets" / "retrieval_v1.json"
+RetrievalMode = Literal["keyword", "vector", "hybrid"]
+DEFAULT_RETRIEVAL_COMPARISON_MODES: tuple[RetrievalMode, ...] = (
+    "keyword",
+    "vector",
+    "hybrid",
+)
 
 
 @dataclass(frozen=True)
@@ -49,7 +57,15 @@ class RetrievalEvalDataset:
 
 
 @dataclass(frozen=True)
+class EvaluatedRetrievedChunk:
+    document_filename: str
+    chunk_index: int
+    page_number: int | None
+
+
+@dataclass(frozen=True)
 class RetrievalCaseResult:
+    mode: RetrievalMode
     case_id: str
     query: str
     top_k: int
@@ -58,11 +74,12 @@ class RetrievalCaseResult:
     reciprocal_rank: float
     precision_at_k: float
     expected_results: list[ExpectedRetrievalResult]
-    returned_results: list[RankedChunk]
+    returned_results: list[EvaluatedRetrievedChunk]
 
 
 @dataclass(frozen=True)
 class RetrievalEvalReport:
+    mode: RetrievalMode
     dataset: str
     case_count: int
     passed_case_count: int
@@ -74,6 +91,26 @@ class RetrievalEvalReport:
     @property
     def failed_case_results(self) -> list[RetrievalCaseResult]:
         return [case_result for case_result in self.case_results if not case_result.passed]
+
+
+@dataclass(frozen=True)
+class RetrievalComparisonCaseResult:
+    case_id: str
+    query: str
+    top_k: int
+    mode_results: dict[RetrievalMode, RetrievalCaseResult]
+
+
+@dataclass(frozen=True)
+class RetrievalComparisonReport:
+    dataset: str
+    case_count: int
+    modes: list[RetrievalMode]
+    mode_reports: dict[RetrievalMode, RetrievalEvalReport]
+    case_results: list[RetrievalComparisonCaseResult]
+    best_mode_by_hit_at_k: RetrievalMode
+    best_mode_by_mrr: RetrievalMode
+    best_mode_by_precision_at_k: RetrievalMode
 
 
 def load_retrieval_eval_dataset(path: Path | None = None) -> RetrievalEvalDataset:
@@ -123,13 +160,84 @@ def parse_retrieval_eval_case(payload: dict[str, Any]) -> RetrievalEvalCase:
 def run_retrieval_evaluation(
     db: Session,
     dataset: RetrievalEvalDataset | None = None,
+    mode: RetrievalMode = "keyword",
 ) -> RetrievalEvalReport:
     eval_dataset = dataset or load_retrieval_eval_dataset()
-    case_results = [run_retrieval_eval_case(db, case) for case in eval_dataset.cases]
-    case_count = len(case_results)
+    case_results = [
+        run_retrieval_eval_case(db, case, mode=mode) for case in eval_dataset.cases
+    ]
+    return build_retrieval_eval_report(
+        dataset_name=eval_dataset.name,
+        mode=mode,
+        case_results=case_results,
+    )
 
-    return RetrievalEvalReport(
+
+def run_retrieval_comparison(
+    db: Session,
+    dataset: RetrievalEvalDataset | None = None,
+    modes: tuple[RetrievalMode, ...] = DEFAULT_RETRIEVAL_COMPARISON_MODES,
+) -> RetrievalComparisonReport:
+    eval_dataset = dataset or load_retrieval_eval_dataset()
+    case_results: list[RetrievalComparisonCaseResult] = []
+    mode_case_results: dict[RetrievalMode, list[RetrievalCaseResult]] = {
+        mode: [] for mode in modes
+    }
+
+    for case in eval_dataset.cases:
+        course = seed_retrieval_eval_case(db, case)
+        mode_results = {
+            mode: run_retrieval_eval_case_for_course(
+                db,
+                case=case,
+                course_id=course.id,
+                mode=mode,
+            )
+            for mode in modes
+        }
+        for mode, mode_result in mode_results.items():
+            mode_case_results[mode].append(mode_result)
+
+        case_results.append(
+            RetrievalComparisonCaseResult(
+                case_id=case.id,
+                query=case.query,
+                top_k=case.top_k,
+                mode_results=mode_results,
+            )
+        )
+
+    mode_reports = {
+        mode: build_retrieval_eval_report(
+            dataset_name=eval_dataset.name,
+            mode=mode,
+            case_results=case_results_for_mode,
+        )
+        for mode, case_results_for_mode in mode_case_results.items()
+    }
+
+    return RetrievalComparisonReport(
         dataset=eval_dataset.name,
+        case_count=len(eval_dataset.cases),
+        modes=list(modes),
+        mode_reports=mode_reports,
+        case_results=case_results,
+        best_mode_by_hit_at_k=find_best_mode(mode_reports, "hit_at_k"),
+        best_mode_by_mrr=find_best_mode(mode_reports, "mean_reciprocal_rank"),
+        best_mode_by_precision_at_k=find_best_mode(mode_reports, "precision_at_k"),
+    )
+
+
+def build_retrieval_eval_report(
+    *,
+    dataset_name: str,
+    mode: RetrievalMode,
+    case_results: list[RetrievalCaseResult],
+) -> RetrievalEvalReport:
+    case_count = len(case_results)
+    return RetrievalEvalReport(
+        mode=mode,
+        dataset=dataset_name,
         case_count=case_count,
         passed_case_count=sum(1 for case_result in case_results if case_result.passed),
         hit_at_k=average(case_result.hit_at_k for case_result in case_results),
@@ -141,19 +249,40 @@ def run_retrieval_evaluation(
     )
 
 
-def run_retrieval_eval_case(db: Session, case: RetrievalEvalCase) -> RetrievalCaseResult:
+def run_retrieval_eval_case(
+    db: Session,
+    case: RetrievalEvalCase,
+    mode: RetrievalMode = "keyword",
+) -> RetrievalCaseResult:
     course = seed_retrieval_eval_case(db, case)
-    returned_results = search_course_chunks(
+    return run_retrieval_eval_case_for_course(
         db,
+        case=case,
         course_id=course.id,
+        mode=mode,
+    )
+
+
+def run_retrieval_eval_case_for_course(
+    db: Session,
+    *,
+    case: RetrievalEvalCase,
+    course_id: uuid.UUID,
+    mode: RetrievalMode,
+) -> RetrievalCaseResult:
+    returned_results = run_retrieval_for_mode(
+        db,
+        course_id=course_id,
         query=case.query,
         limit=case.top_k,
+        mode=mode,
     )
 
     if not case.expected_results:
         passed = len(returned_results) == 0
         score = 1.0 if passed else 0.0
         return RetrievalCaseResult(
+            mode=mode,
             case_id=case.id,
             query=case.query,
             top_k=case.top_k,
@@ -170,6 +299,7 @@ def run_retrieval_eval_case(db: Session, case: RetrievalEvalCase) -> RetrievalCa
     passed = first_match_rank is not None
 
     return RetrievalCaseResult(
+        mode=mode,
         case_id=case.id,
         query=case.query,
         top_k=case.top_k,
@@ -180,6 +310,43 @@ def run_retrieval_eval_case(db: Session, case: RetrievalEvalCase) -> RetrievalCa
         expected_results=case.expected_results,
         returned_results=returned_results,
     )
+
+
+def run_retrieval_for_mode(
+    db: Session,
+    *,
+    course_id: uuid.UUID,
+    query: str,
+    limit: int,
+    mode: RetrievalMode,
+) -> list[EvaluatedRetrievedChunk]:
+    if mode == "keyword":
+        results = search_course_chunks(db, course_id=course_id, query=query, limit=limit)
+    elif mode == "vector":
+        results = search_course_chunks_by_vector(
+            db,
+            course_id=course_id,
+            query=query,
+            limit=limit,
+        )
+    elif mode == "hybrid":
+        results = search_course_chunks_by_hybrid(
+            db,
+            course_id=course_id,
+            query=query,
+            limit=limit,
+        )
+    else:
+        raise ValueError(f"Unsupported retrieval mode '{mode}'")
+
+    return [
+        EvaluatedRetrievedChunk(
+            document_filename=result.document_filename,
+            chunk_index=result.chunk_index,
+            page_number=result.page_number,
+        )
+        for result in results
+    ]
 
 
 def seed_retrieval_eval_case(db: Session, case: RetrievalEvalCase) -> Course:
@@ -225,7 +392,7 @@ def max_page_number(chunks: list[RetrievalEvalChunk]) -> int | None:
 
 
 def first_relevant_rank(
-    returned_results: list[RankedChunk],
+    returned_results: list[EvaluatedRetrievedChunk],
     expected_results: list[ExpectedRetrievalResult],
 ) -> int | None:
     for rank, returned_result in enumerate(returned_results, start=1):
@@ -235,7 +402,7 @@ def first_relevant_rank(
 
 
 def count_relevant_results(
-    returned_results: list[RankedChunk],
+    returned_results: list[EvaluatedRetrievedChunk],
     expected_results: list[ExpectedRetrievalResult],
 ) -> int:
     return sum(
@@ -246,14 +413,14 @@ def count_relevant_results(
 
 
 def is_relevant_result(
-    returned_result: RankedChunk,
+    returned_result: Any,
     expected_results: list[ExpectedRetrievalResult],
 ) -> bool:
     return any(matches_expected_result(returned_result, expected) for expected in expected_results)
 
 
 def matches_expected_result(
-    returned_result: RankedChunk,
+    returned_result: Any,
     expected: ExpectedRetrievalResult,
 ) -> bool:
     if returned_result.document_filename != expected.filename:
@@ -263,6 +430,16 @@ def matches_expected_result(
     if expected.page_number is not None and returned_result.page_number != expected.page_number:
         return False
     return True
+
+
+def find_best_mode(
+    mode_reports: dict[RetrievalMode, RetrievalEvalReport],
+    metric_name: Literal["hit_at_k", "mean_reciprocal_rank", "precision_at_k"],
+) -> RetrievalMode:
+    return max(
+        mode_reports,
+        key=lambda mode: getattr(mode_reports[mode], metric_name),
+    )
 
 
 def average(values: Any) -> float:

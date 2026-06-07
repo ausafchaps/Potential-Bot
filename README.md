@@ -30,6 +30,7 @@ Completed modules:
 - real LLM provider integration with Groq
 - vector retrieval foundation with deterministic fake embeddings
 - hybrid retrieval foundation
+- retrieval evaluation comparison across keyword, vector, and hybrid search
 
 ## Planned Capabilities
 
@@ -116,9 +117,9 @@ architecture and tests before real embedding APIs or `pgvector`. PDF ingestion
 supports text-based PDFs only; scanned/image PDFs need a later OCR pipeline.
 Answers currently use a deterministic fake LLM provider through a provider
 interface. Retrieval evaluation uses a small bundled dataset to measure the
-current keyword baseline with hit rate, mean reciprocal rank, and precision at k.
-Authentication, real embedding providers, quizzes, and flashcards are planned
-but not implemented yet.
+keyword, vector, and hybrid paths with hit rate, mean reciprocal rank, and
+precision at k. Authentication, real embedding providers, quizzes, and
+flashcards are planned but not implemented yet.
 
 ## LLM Providers
 
@@ -159,6 +160,7 @@ Decision records live in `docs/decisions`.
 - `0013-real-llm-provider-integration.md`
 - `0014-vector-retrieval-foundation.md`
 - `0015-hybrid-retrieval-foundation.md`
+- `0016-retrieval-eval-comparison.md`
 
 ## Branch Workflow
 
