@@ -138,3 +138,11 @@ Milestone 15 starts hybrid retrieval:
 - weighted hybrid score
 - retrieval source metadata for explainability
 - answer orchestration still uses keyword retrieval until hybrid is evaluated
+
+Milestone 16 expands retrieval evaluation:
+
+- comparison reports for keyword, vector, and hybrid retrieval
+- each eval case is seeded once before all retrieval modes run
+- per-mode hit at k, mean reciprocal rank, and precision at k
+- best-mode summaries by metric
+- per-case mode results that expose retrieval tradeoffs

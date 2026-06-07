@@ -7,6 +7,7 @@ from app.evaluation.retrieval import (
     RetrievalEvalDocument,
     load_retrieval_eval_dataset,
     matches_expected_result,
+    run_retrieval_comparison,
     run_retrieval_evaluation,
 )
 from app.services.retrieval import RankedChunk
@@ -39,6 +40,7 @@ def test_run_retrieval_evaluation_reports_keyword_baseline_metrics() -> None:
         session.close()
 
     assert report.dataset == "retrieval_v1"
+    assert report.mode == "keyword"
     assert report.case_count == 6
     assert report.passed_case_count == 5
     assert report.hit_at_k == 5 / 6
@@ -47,6 +49,78 @@ def test_run_retrieval_evaluation_reports_keyword_baseline_metrics() -> None:
     assert [case.case_id for case in report.failed_case_results] == [
         "keyword_synonym_limitation"
     ]
+
+
+def test_run_retrieval_evaluation_can_run_vector_mode() -> None:
+    session = build_test_session()
+
+    try:
+        report = run_retrieval_evaluation(session, mode="vector")
+    finally:
+        session.close()
+
+    assert report.mode == "vector"
+    assert report.case_count == 6
+    assert report.passed_case_count >= 5
+    assert report.hit_at_k >= 5 / 6
+
+
+def test_run_retrieval_comparison_reports_all_modes() -> None:
+    session = build_test_session()
+
+    try:
+        report = run_retrieval_comparison(session)
+    finally:
+        session.close()
+
+    assert report.dataset == "retrieval_v1"
+    assert report.case_count == 6
+    assert report.modes == ["keyword", "vector", "hybrid"]
+    assert set(report.mode_reports) == {"keyword", "vector", "hybrid"}
+    assert report.mode_reports["keyword"].passed_case_count == 5
+    assert report.mode_reports["hybrid"].hit_at_k >= report.mode_reports["keyword"].hit_at_k
+    assert report.best_mode_by_hit_at_k == "keyword"
+    assert report.best_mode_by_mrr == "keyword"
+    assert report.best_mode_by_precision_at_k == "keyword"
+    assert len(report.case_results) == 6
+
+
+def test_retrieval_comparison_shows_hybrid_improves_keyword_synonym_case() -> None:
+    session = build_test_session()
+
+    try:
+        report = run_retrieval_comparison(session)
+    finally:
+        session.close()
+
+    synonym_case = next(
+        case_result
+        for case_result in report.case_results
+        if case_result.case_id == "keyword_synonym_limitation"
+    )
+
+    assert not synonym_case.mode_results["keyword"].passed
+    assert synonym_case.mode_results["hybrid"].passed
+    assert synonym_case.mode_results["hybrid"].reciprocal_rank > 0
+
+
+def test_retrieval_comparison_exposes_vector_no_match_tradeoff() -> None:
+    session = build_test_session()
+
+    try:
+        report = run_retrieval_comparison(session)
+    finally:
+        session.close()
+
+    no_match_case = next(
+        case_result
+        for case_result in report.case_results
+        if case_result.case_id == "no_matching_material"
+    )
+
+    assert no_match_case.mode_results["keyword"].passed
+    assert not no_match_case.mode_results["vector"].passed
+    assert not no_match_case.mode_results["hybrid"].passed
 
 
 def test_run_retrieval_evaluation_passes_negative_case_when_no_results_return() -> None:
