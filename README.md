@@ -32,6 +32,7 @@ Completed modules:
 - hybrid retrieval foundation
 - retrieval evaluation comparison across keyword, vector, and hybrid search
 - hybrid retrieval for grounded answers
+- quiz generation foundation
 
 ## Planned Capabilities
 
@@ -79,6 +80,12 @@ Questions:
 - `GET /courses/{course_id}/questions`
 - `GET /questions/{question_id}`
 
+Quizzes:
+
+- `POST /courses/{course_id}/quizzes`
+- `GET /courses/{course_id}/quizzes`
+- `GET /quizzes/{quiz_id}`
+
 Answer feedback:
 
 - `POST /answers/{answer_id}/feedback`
@@ -104,6 +111,7 @@ create user
 -> semantically search chunks with fake embeddings
 -> search chunks with hybrid keyword/vector ranking
 -> ask grounded questions with hybrid-retrieved evidence
+-> generate multiple-choice quizzes with citations
 -> rate answer helpfulness
 -> review answer history
 -> inspect admin metrics
@@ -120,8 +128,8 @@ Answers currently use a deterministic fake LLM provider through a provider
 interface, and grounded answers use hybrid retrieval for evidence. Retrieval
 evaluation uses a small bundled dataset to measure the keyword, vector, and
 hybrid paths with hit rate, mean reciprocal rank, and precision at k.
-Authentication, real embedding providers, quizzes, and flashcards are planned
-but not implemented yet.
+Authentication, real embedding providers, flashcards, quiz attempts, and scoring
+are planned but not implemented yet.
 
 ## LLM Providers
 
@@ -164,6 +172,7 @@ Decision records live in `docs/decisions`.
 - `0015-hybrid-retrieval-foundation.md`
 - `0016-retrieval-eval-comparison.md`
 - `0017-hybrid-grounded-answers.md`
+- `0018-quiz-generation-foundation.md`
 
 ## Branch Workflow
 

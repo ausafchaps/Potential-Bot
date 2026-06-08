@@ -8,6 +8,10 @@ from app.models.document import Document, DocumentStatus
 from app.models.document_chunk import DocumentChunk
 from app.models.document_chunk_embedding import DocumentChunkEmbedding
 from app.models.question import Question
+from app.models.quiz import Quiz, QuizDifficulty, QuizStatus
+from app.models.quiz_citation import QuizCitation
+from app.models.quiz_question import QuizQuestion
+from app.models.quiz_question_option import QuizQuestionOption
 from app.models.user import User
 
 __all__ = [
@@ -21,5 +25,11 @@ __all__ = [
     "DocumentChunkEmbedding",
     "DocumentStatus",
     "Question",
+    "Quiz",
+    "QuizCitation",
+    "QuizDifficulty",
+    "QuizQuestion",
+    "QuizQuestionOption",
+    "QuizStatus",
     "User",
 ]

@@ -154,3 +154,12 @@ Milestone 17 switches grounded answers to hybrid retrieval:
 - hybrid chunks are adapted into grounded evidence chunks for prompts and citations
 - low-confidence hybrid results are filtered before answer generation
 - insufficient-evidence responses remain supported
+
+Milestone 18 starts quiz generation:
+
+- stored quizzes, quiz questions, options, and quiz citations
+- course-scoped quiz generation endpoint
+- quiz list and detail endpoints
+- deterministic fake quiz generation from hybrid evidence
+- real-provider JSON prompt path for future Groq quiz generation
+- insufficient-evidence quiz records when retrieval cannot support a topic
