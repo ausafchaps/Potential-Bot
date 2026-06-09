@@ -7,6 +7,12 @@ from app.models import (
     DocumentChunk,
     DocumentChunkEmbedding,
     DocumentStatus,
+    Quiz,
+    QuizCitation,
+    QuizDifficulty,
+    QuizQuestion,
+    QuizQuestionOption,
+    QuizStatus,
     User,
 )
 from sqlalchemy import create_engine, inspect, select
@@ -36,6 +42,10 @@ def test_core_tables_are_declared() -> None:
         "document_chunks",
         "document_chunk_embeddings",
         "questions",
+        "quiz_citations",
+        "quiz_question_options",
+        "quiz_questions",
+        "quizzes",
     }
 
 
@@ -65,6 +75,37 @@ def test_user_course_document_chunk_relationships() -> None:
         dimensions=24,
         vector_json="[1.0,0.0]",
     )
+    quiz = Quiz(
+        course=course,
+        topic="binary search",
+        title="Binary Search Quiz",
+        difficulty=QuizDifficulty.medium,
+        status=QuizStatus.generated,
+        provider="fake",
+        prompt="Generate a quiz",
+    )
+    quiz_question = QuizQuestion(
+        quiz=quiz,
+        position=1,
+        question_text="What does binary search require?",
+        explanation="It requires sorted input.",
+    )
+    QuizQuestionOption(
+        question=quiz_question,
+        position=1,
+        text="A sorted array",
+        is_correct=True,
+    )
+    QuizCitation(
+        question=quiz_question,
+        position=1,
+        document_id=None,
+        chunk_id=None,
+        document_filename="lecture-1.pdf",
+        chunk_index=0,
+        page_number=3,
+        text=chunk.text,
+    )
 
     session.add(user)
     session.commit()
@@ -77,5 +118,7 @@ def test_user_course_document_chunk_relationships() -> None:
     assert saved_user.courses[0].documents[0].status == DocumentStatus.completed
     assert saved_user.courses[0].documents[0].chunks[0].text == chunk.text
     assert saved_user.courses[0].documents[0].chunks[0].embeddings[0].id == embedding.id
+    assert saved_user.courses[0].quizzes[0].questions[0].options[0].is_correct
+    assert saved_user.courses[0].quizzes[0].questions[0].citations[0].text == chunk.text
 
     session.close()

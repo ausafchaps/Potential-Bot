@@ -10,6 +10,7 @@ from app.models.base import TimestampMixin, UUIDPrimaryKeyMixin
 
 if TYPE_CHECKING:
     from app.models.document import Document
+    from app.models.quiz import Quiz
     from app.models.user import User
 
 
@@ -27,6 +28,10 @@ class Course(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     owner: Mapped["User"] = relationship(back_populates="courses")
     documents: Mapped[list["Document"]] = relationship(
+        back_populates="course",
+        cascade="all, delete-orphan",
+    )
+    quizzes: Mapped[list["Quiz"]] = relationship(
         back_populates="course",
         cascade="all, delete-orphan",
     )
