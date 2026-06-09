@@ -11,6 +11,7 @@ from app.models.base import TimestampMixin, UUIDPrimaryKeyMixin
 
 if TYPE_CHECKING:
     from app.models.course import Course
+    from app.models.quiz_attempt import QuizAttempt
     from app.models.quiz_question import QuizQuestion
 
 
@@ -65,4 +66,8 @@ class Quiz(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         cascade="all, delete-orphan",
         order_by="QuizQuestion.position",
     )
-
+    attempts: Mapped[list["QuizAttempt"]] = relationship(
+        back_populates="quiz",
+        cascade="all, delete-orphan",
+        order_by="QuizAttempt.created_at.desc()",
+    )

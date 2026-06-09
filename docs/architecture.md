@@ -163,3 +163,12 @@ Milestone 18 starts quiz generation:
 - deterministic fake quiz generation from hybrid evidence
 - real-provider JSON prompt path for future Groq quiz generation
 - insufficient-evidence quiz records when retrieval cannot support a topic
+
+Milestone 19 adds quiz attempts and grading:
+
+- stored quiz attempts
+- stored per-question submitted answers
+- correctness snapshots for selected and correct options
+- score percentage calculation
+- quiz attempt list and detail endpoints
+- validation for complete attempts and option/question ownership

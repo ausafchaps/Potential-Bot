@@ -8,6 +8,8 @@ from app.models import (
     DocumentChunkEmbedding,
     DocumentStatus,
     Quiz,
+    QuizAttempt,
+    QuizAttemptAnswer,
     QuizCitation,
     QuizDifficulty,
     QuizQuestion,
@@ -43,6 +45,8 @@ def test_core_tables_are_declared() -> None:
         "document_chunk_embeddings",
         "questions",
         "quiz_citations",
+        "quiz_attempt_answers",
+        "quiz_attempts",
         "quiz_question_options",
         "quiz_questions",
         "quizzes",
@@ -84,13 +88,17 @@ def test_user_course_document_chunk_relationships() -> None:
         provider="fake",
         prompt="Generate a quiz",
     )
+    quiz_question_id = uuid.uuid4()
+    option_id = uuid.uuid4()
     quiz_question = QuizQuestion(
+        id=quiz_question_id,
         quiz=quiz,
         position=1,
         question_text="What does binary search require?",
         explanation="It requires sorted input.",
     )
     QuizQuestionOption(
+        id=option_id,
         question=quiz_question,
         position=1,
         text="A sorted array",
@@ -106,6 +114,23 @@ def test_user_course_document_chunk_relationships() -> None:
         page_number=3,
         text=chunk.text,
     )
+    attempt = QuizAttempt(
+        quiz=quiz,
+        correct_count=1,
+        question_count=1,
+        score_percent=100.0,
+    )
+    QuizAttemptAnswer(
+        attempt=attempt,
+        question_id=quiz_question_id,
+        selected_option_id=option_id,
+        question_position=1,
+        question_text=quiz_question.question_text,
+        selected_option_text="A sorted array",
+        correct_option_id=option_id,
+        correct_option_text="A sorted array",
+        is_correct=True,
+    )
 
     session.add(user)
     session.commit()
@@ -120,5 +145,6 @@ def test_user_course_document_chunk_relationships() -> None:
     assert saved_user.courses[0].documents[0].chunks[0].embeddings[0].id == embedding.id
     assert saved_user.courses[0].quizzes[0].questions[0].options[0].is_correct
     assert saved_user.courses[0].quizzes[0].questions[0].citations[0].text == chunk.text
+    assert saved_user.courses[0].quizzes[0].attempts[0].score_percent == 100.0
 
     session.close()
