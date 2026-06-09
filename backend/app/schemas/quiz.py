@@ -76,3 +76,43 @@ class QuizSummaryResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+
+class QuizAttemptAnswerCreate(BaseModel):
+    question_id: uuid.UUID
+    selected_option_id: uuid.UUID
+
+
+class QuizAttemptCreate(BaseModel):
+    answers: list[QuizAttemptAnswerCreate] = Field(min_length=1)
+
+
+class QuizAttemptAnswerResponse(BaseModel):
+    question_id: uuid.UUID
+    selected_option_id: uuid.UUID
+    question_position: int
+    question: str
+    selected_option: str
+    correct_option_id: uuid.UUID
+    correct_option: str
+    is_correct: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class QuizAttemptResponse(BaseModel):
+    id: uuid.UUID
+    quiz_id: uuid.UUID
+    correct_count: int
+    question_count: int
+    score_percent: float
+    answers: list[QuizAttemptAnswerResponse]
+    created_at: datetime
+
+
+class QuizAttemptSummaryResponse(BaseModel):
+    id: uuid.UUID
+    quiz_id: uuid.UUID
+    correct_count: int
+    question_count: int
+    score_percent: float
+    created_at: datetime
