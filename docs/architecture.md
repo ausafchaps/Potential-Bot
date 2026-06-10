@@ -180,3 +180,11 @@ Milestone 20 adds weak-topic analytics:
 - accuracy and weakness scoring from correct and incorrect answers
 - minimum-attempt and result-limit filters
 - read-only analytics with no new persistence tables
+
+Milestone 21 adds study recommendations:
+
+- course-scoped recommendation endpoint
+- deterministic recommendations derived from weak-topic analytics
+- priority classification for high, medium, low, and mastered topics
+- review, missed-question practice, quiz generation, and maintenance actions
+- optional inclusion of mastered topics for full study-status views

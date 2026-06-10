@@ -35,6 +35,7 @@ Completed modules:
 - quiz generation foundation
 - quiz attempts and grading
 - weak-topic analytics from quiz attempts
+- study recommendations from weak topics
 
 ## Planned Capabilities
 
@@ -92,6 +93,7 @@ Quizzes:
 - `GET /quizzes/{quiz_id}/attempts`
 - `GET /quiz-attempts/{attempt_id}`
 - `GET /courses/{course_id}/weak-topics`
+- `GET /courses/{course_id}/study-recommendations`
 
 Answer feedback:
 
@@ -121,6 +123,7 @@ create user
 -> generate multiple-choice quizzes with citations
 -> submit quiz attempts and review scores
 -> inspect weak-topic analytics from quiz attempts
+-> get study recommendations from weak topics
 -> rate answer helpfulness
 -> review answer history
 -> inspect admin metrics
@@ -184,6 +187,7 @@ Decision records live in `docs/decisions`.
 - `0018-quiz-generation-foundation.md`
 - `0019-quiz-attempts-grading.md`
 - `0020-weak-topic-analytics.md`
+- `0021-study-recommendations.md`
 
 ## Branch Workflow
 
