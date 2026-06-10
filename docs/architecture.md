@@ -172,3 +172,11 @@ Milestone 19 adds quiz attempts and grading:
 - score percentage calculation
 - quiz attempt list and detail endpoints
 - validation for complete attempts and option/question ownership
+
+Milestone 20 adds weak-topic analytics:
+
+- course-scoped weak-topic endpoint
+- topic-level aggregation from submitted quiz attempts
+- accuracy and weakness scoring from correct and incorrect answers
+- minimum-attempt and result-limit filters
+- read-only analytics with no new persistence tables

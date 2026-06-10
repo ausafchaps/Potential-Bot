@@ -34,6 +34,7 @@ Completed modules:
 - hybrid retrieval for grounded answers
 - quiz generation foundation
 - quiz attempts and grading
+- weak-topic analytics from quiz attempts
 
 ## Planned Capabilities
 
@@ -90,6 +91,7 @@ Quizzes:
 - `POST /quizzes/{quiz_id}/attempts`
 - `GET /quizzes/{quiz_id}/attempts`
 - `GET /quiz-attempts/{attempt_id}`
+- `GET /courses/{course_id}/weak-topics`
 
 Answer feedback:
 
@@ -118,6 +120,7 @@ create user
 -> ask grounded questions with hybrid-retrieved evidence
 -> generate multiple-choice quizzes with citations
 -> submit quiz attempts and review scores
+-> inspect weak-topic analytics from quiz attempts
 -> rate answer helpfulness
 -> review answer history
 -> inspect admin metrics
@@ -134,8 +137,8 @@ Answers currently use a deterministic fake LLM provider through a provider
 interface, and grounded answers use hybrid retrieval for evidence. Retrieval
 evaluation uses a small bundled dataset to measure the keyword, vector, and
 hybrid paths with hit rate, mean reciprocal rank, and precision at k.
-Authentication, real embedding providers, flashcards, weak-topic tracking, and
-spaced repetition are planned but not implemented yet.
+Authentication, real embedding providers, flashcards, spaced repetition, and
+question-level concept tagging are planned but not implemented yet.
 
 ## LLM Providers
 
@@ -180,6 +183,7 @@ Decision records live in `docs/decisions`.
 - `0017-hybrid-grounded-answers.md`
 - `0018-quiz-generation-foundation.md`
 - `0019-quiz-attempts-grading.md`
+- `0020-weak-topic-analytics.md`
 
 ## Branch Workflow
 

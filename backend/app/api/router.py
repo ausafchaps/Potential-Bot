@@ -11,6 +11,7 @@ from app.api.routes.questions import router as questions_router
 from app.api.routes.quizzes import router as quizzes_router
 from app.api.routes.retrieval import router as retrieval_router
 from app.api.routes.users import router as users_router
+from app.api.routes.weak_topics import router as weak_topics_router
 
 api_router = APIRouter()
 api_router.include_router(admin_router)
@@ -24,3 +25,4 @@ api_router.include_router(questions_router)
 api_router.include_router(quizzes_router)
 api_router.include_router(retrieval_router)
 api_router.include_router(users_router)
+api_router.include_router(weak_topics_router)
