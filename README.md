@@ -36,6 +36,7 @@ Completed modules:
 - quiz attempts and grading
 - weak-topic analytics from quiz attempts
 - study recommendations from weak topics
+- flashcard generation foundation
 
 ## Planned Capabilities
 
@@ -95,6 +96,12 @@ Quizzes:
 - `GET /courses/{course_id}/weak-topics`
 - `GET /courses/{course_id}/study-recommendations`
 
+Flashcards:
+
+- `POST /courses/{course_id}/flashcard-sets`
+- `GET /courses/{course_id}/flashcard-sets`
+- `GET /flashcard-sets/{flashcard_set_id}`
+
 Answer feedback:
 
 - `POST /answers/{answer_id}/feedback`
@@ -121,6 +128,7 @@ create user
 -> search chunks with hybrid keyword/vector ranking
 -> ask grounded questions with hybrid-retrieved evidence
 -> generate multiple-choice quizzes with citations
+-> generate cited flashcard sets
 -> submit quiz attempts and review scores
 -> inspect weak-topic analytics from quiz attempts
 -> get study recommendations from weak topics
@@ -140,8 +148,8 @@ Answers currently use a deterministic fake LLM provider through a provider
 interface, and grounded answers use hybrid retrieval for evidence. Retrieval
 evaluation uses a small bundled dataset to measure the keyword, vector, and
 hybrid paths with hit rate, mean reciprocal rank, and precision at k.
-Authentication, real embedding providers, flashcards, spaced repetition, and
-question-level concept tagging are planned but not implemented yet.
+Authentication, real embedding providers, spaced repetition, flashcard review
+tracking, and question-level concept tagging are planned but not implemented yet.
 
 ## LLM Providers
 
@@ -188,6 +196,7 @@ Decision records live in `docs/decisions`.
 - `0019-quiz-attempts-grading.md`
 - `0020-weak-topic-analytics.md`
 - `0021-study-recommendations.md`
+- `0022-flashcard-generation-foundation.md`
 
 ## Branch Workflow
 

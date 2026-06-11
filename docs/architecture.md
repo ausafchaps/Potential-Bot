@@ -188,3 +188,12 @@ Milestone 21 adds study recommendations:
 - priority classification for high, medium, low, and mastered topics
 - review, missed-question practice, quiz generation, and maintenance actions
 - optional inclusion of mastered topics for full study-status views
+
+Milestone 22 starts flashcard generation:
+
+- stored flashcard sets, flashcards, and flashcard citations
+- course-scoped flashcard generation endpoint
+- flashcard set list and detail endpoints
+- deterministic fake flashcard generation from hybrid evidence
+- real-provider JSON prompt path for future Groq flashcard generation
+- insufficient-evidence flashcard records when retrieval cannot support a topic
