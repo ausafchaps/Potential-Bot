@@ -7,6 +7,13 @@ from app.models.course import Course
 from app.models.document import Document, DocumentStatus
 from app.models.document_chunk import DocumentChunk
 from app.models.document_chunk_embedding import DocumentChunkEmbedding
+from app.models.flashcard import Flashcard
+from app.models.flashcard_citation import FlashcardCitation
+from app.models.flashcard_set import (
+    FlashcardDifficulty,
+    FlashcardSet,
+    FlashcardSetStatus,
+)
 from app.models.question import Question
 from app.models.quiz import Quiz, QuizDifficulty, QuizStatus
 from app.models.quiz_attempt import QuizAttempt
@@ -26,6 +33,11 @@ __all__ = [
     "DocumentChunk",
     "DocumentChunkEmbedding",
     "DocumentStatus",
+    "Flashcard",
+    "FlashcardCitation",
+    "FlashcardDifficulty",
+    "FlashcardSet",
+    "FlashcardSetStatus",
     "Question",
     "Quiz",
     "QuizAttempt",

@@ -7,6 +7,11 @@ from app.models import (
     DocumentChunk,
     DocumentChunkEmbedding,
     DocumentStatus,
+    Flashcard,
+    FlashcardCitation,
+    FlashcardDifficulty,
+    FlashcardSet,
+    FlashcardSetStatus,
     Quiz,
     QuizAttempt,
     QuizAttemptAnswer,
@@ -43,6 +48,9 @@ def test_core_tables_are_declared() -> None:
         "documents",
         "document_chunks",
         "document_chunk_embeddings",
+        "flashcard_citations",
+        "flashcard_sets",
+        "flashcards",
         "questions",
         "quiz_citations",
         "quiz_attempt_answers",
@@ -131,6 +139,31 @@ def test_user_course_document_chunk_relationships() -> None:
         correct_option_text="A sorted array",
         is_correct=True,
     )
+    flashcard_set = FlashcardSet(
+        course=course,
+        topic="binary search",
+        title="Binary Search Flashcards",
+        difficulty=FlashcardDifficulty.medium,
+        status=FlashcardSetStatus.generated,
+        provider="fake",
+        prompt="Generate flashcards",
+    )
+    flashcard = Flashcard(
+        flashcard_set=flashcard_set,
+        position=1,
+        front="What is binary search?",
+        back=chunk.text,
+    )
+    FlashcardCitation(
+        flashcard=flashcard,
+        position=1,
+        document_id=None,
+        chunk_id=None,
+        document_filename="lecture-1.pdf",
+        chunk_index=0,
+        page_number=3,
+        text=chunk.text,
+    )
 
     session.add(user)
     session.commit()
@@ -146,5 +179,7 @@ def test_user_course_document_chunk_relationships() -> None:
     assert saved_user.courses[0].quizzes[0].questions[0].options[0].is_correct
     assert saved_user.courses[0].quizzes[0].questions[0].citations[0].text == chunk.text
     assert saved_user.courses[0].quizzes[0].attempts[0].score_percent == 100.0
+    assert saved_user.courses[0].flashcard_sets[0].cards[0].back == chunk.text
+    assert saved_user.courses[0].flashcard_sets[0].cards[0].citations[0].text == chunk.text
 
     session.close()
