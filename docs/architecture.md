@@ -197,3 +197,14 @@ Milestone 22 starts flashcard generation:
 - deterministic fake flashcard generation from hybrid evidence
 - real-provider JSON prompt path for future Groq flashcard generation
 - insufficient-evidence flashcard records when retrieval cannot support a topic
+
+Milestone 23 adds real embedding provider integration:
+
+- provider factory driven by environment settings
+- fake embedding provider remains the default
+- OpenAI embedding provider using the embeddings API
+- `EMBEDDING_API_KEY` or `OPENAI_API_KEY` configuration
+- optional dimension shortening for supported OpenAI embedding models
+- provider configuration and runtime errors surfaced through vector and hybrid
+  search APIs
+- mocked HTTP tests for provider request and response handling

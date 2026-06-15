@@ -5,6 +5,10 @@ from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
 from app.models import DocumentChunkEmbedding
+from app.services.embeddings.base import (
+    EmbeddingProviderConfigurationError,
+    EmbeddingProviderError,
+)
 from app.services.vector_retrieval import (
     cosine_similarity,
     ensure_course_chunk_embeddings,
@@ -213,5 +217,63 @@ def test_vector_search_endpoint_rejects_empty_query_terms() -> None:
         )
 
         assert response.status_code == 422
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_vector_search_endpoint_returns_503_for_embedding_config_error(
+    monkeypatch,
+) -> None:
+    client = build_client()
+
+    def raise_config_error():
+        raise EmbeddingProviderConfigurationError("Embedding provider is not configured")
+
+    try:
+        course_id = create_course(client)
+        monkeypatch.setattr(
+            "app.services.vector_retrieval.get_embedding_provider",
+            raise_config_error,
+        )
+
+        response = client.get(
+            f"/courses/{course_id}/search/vector",
+            params={"query": "binary search"},
+        )
+
+        assert response.status_code == 503
+        assert response.json()["detail"] == "Embedding provider is not configured"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_vector_search_endpoint_returns_502_for_embedding_provider_error(
+    monkeypatch,
+) -> None:
+    client = build_client()
+
+    class FailingEmbeddingProvider:
+        provider_name = "openai"
+        model_name = "text-embedding-3-small"
+        dimensions = 1536
+
+        def embed_text(self, _text: str) -> list[float]:
+            raise EmbeddingProviderError("OpenAI embedding provider request failed")
+
+    try:
+        course_id = create_course(client)
+        upload_text(client, course_id, "notes.txt", b"Binary search halves arrays.")
+        monkeypatch.setattr(
+            "app.services.vector_retrieval.get_embedding_provider",
+            lambda: FailingEmbeddingProvider(),
+        )
+
+        response = client.get(
+            f"/courses/{course_id}/search/vector",
+            params={"query": "binary search"},
+        )
+
+        assert response.status_code == 502
+        assert response.json()["detail"] == "OpenAI embedding provider request failed"
     finally:
         app.dependency_overrides.clear()

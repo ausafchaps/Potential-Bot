@@ -13,6 +13,13 @@ class Settings(BaseSettings):
     groq_api_key: str | None = None
     llm_base_url: str = "https://api.groq.com/openai/v1"
     llm_timeout_seconds: float = 30.0
+    embedding_provider: str = "fake"
+    embedding_model: str = "text-embedding-3-small"
+    embedding_api_key: str | None = None
+    openai_api_key: str | None = None
+    embedding_base_url: str = "https://api.openai.com/v1"
+    embedding_timeout_seconds: float = 30.0
+    embedding_dimensions: int | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -29,6 +29,7 @@ Completed modules:
 - retrieval evaluation foundation
 - real LLM provider integration with Groq
 - vector retrieval foundation with deterministic fake embeddings
+- real embedding provider integration with OpenAI
 - hybrid retrieval foundation
 - retrieval evaluation comparison across keyword, vector, and hybrid search
 - hybrid retrieval for grounded answers
@@ -124,7 +125,7 @@ create user
 -> upload text/PDF document
 -> inspect documents/chunks
 -> search chunks
--> semantically search chunks with fake embeddings
+-> semantically search chunks with fake or OpenAI embeddings
 -> search chunks with hybrid keyword/vector ranking
 -> ask grounded questions with hybrid-retrieved evidence
 -> generate multiple-choice quizzes with citations
@@ -140,16 +141,17 @@ create user
 ```
 
 Retrieval supports keyword search, vector search with persisted chunk embeddings,
-and hybrid search that combines normalized keyword and vector scores. The current
-embedding provider is deterministic and local, so the vector path is useful for
-architecture and tests before real embedding APIs or `pgvector`. PDF ingestion
-supports text-based PDFs only; scanned/image PDFs need a later OCR pipeline.
+and hybrid search that combines normalized keyword and vector scores. The default
+embedding provider is deterministic and local, and OpenAI embeddings can be
+enabled through environment settings for a more realistic retrieval demo before
+`pgvector`. PDF ingestion supports text-based PDFs only; scanned/image PDFs need
+a later OCR pipeline.
 Answers currently use a deterministic fake LLM provider through a provider
 interface, and grounded answers use hybrid retrieval for evidence. Retrieval
 evaluation uses a small bundled dataset to measure the keyword, vector, and
 hybrid paths with hit rate, mean reciprocal rank, and precision at k.
-Authentication, real embedding providers, spaced repetition, flashcard review
-tracking, and question-level concept tagging are planned but not implemented yet.
+Authentication, spaced repetition, flashcard review tracking, and question-level
+concept tagging are planned but not implemented yet.
 
 ## LLM Providers
 
@@ -170,6 +172,27 @@ LLM_MODEL=llama-3.1-8b-instant
 
 `LLM_API_KEY` can also be used instead of `GROQ_API_KEY`. Tests do not call real
 provider APIs.
+
+## Embedding Providers
+
+StudyBot also uses a provider interface for vector retrieval. The default
+embedding provider is deterministic and free:
+
+```powershell
+EMBEDDING_PROVIDER=fake
+```
+
+To use OpenAI embeddings for vector and hybrid retrieval, set:
+
+```powershell
+EMBEDDING_PROVIDER=openai
+EMBEDDING_API_KEY=your-openai-api-key
+EMBEDDING_MODEL=text-embedding-3-small
+```
+
+`OPENAI_API_KEY` can also be used instead of `EMBEDDING_API_KEY`. Optional
+`EMBEDDING_DIMENSIONS` is supported for models that allow shorter embeddings.
+Tests mock the provider and do not call OpenAI.
 
 ## Architecture Decisions
 
@@ -197,6 +220,7 @@ Decision records live in `docs/decisions`.
 - `0020-weak-topic-analytics.md`
 - `0021-study-recommendations.md`
 - `0022-flashcard-generation-foundation.md`
+- `0023-openai-embedding-provider.md`
 
 ## Branch Workflow
 

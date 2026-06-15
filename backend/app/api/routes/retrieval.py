@@ -6,6 +6,10 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.schemas.retrieval import HybridSearchResponse, SearchResponse, VectorSearchResponse
+from app.services.embeddings.base import (
+    EmbeddingProviderConfigurationError,
+    EmbeddingProviderError,
+)
 from app.services.hybrid_retrieval import search_course_chunks_by_hybrid
 from app.services.retrieval import (
     CourseNotFoundError,
@@ -58,6 +62,16 @@ def hybrid_search_course_endpoint(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
         ) from exc
+    except EmbeddingProviderConfigurationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+    except EmbeddingProviderError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
 
     return HybridSearchResponse(course_id=course_id, query=query, results=results)
 
@@ -81,6 +95,16 @@ def vector_search_course_endpoint(
     except EmptySearchQueryError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+    except EmbeddingProviderConfigurationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+    except EmbeddingProviderError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
             detail=str(exc),
         ) from exc
 
