@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>StudyBot Demo</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand-lockup">
+          <canvas id="evidenceCanvas" width="88" height="48" aria-hidden="true"></canvas>
+          <div>
+            <h1>StudyBot</h1>
+            <p>Grounded study workspace</p>
+          </div>
+        </div>
+        <div class="api-control">
+          <label for="apiBase">API</label>
+          <input id="apiBase" type="url" value="http://127.0.0.1:8000" />
+          <button id="saveApiButton" type="button">Save</button>
+        </div>
+      </header>
+
+      <main class="workspace-grid">
+        <aside class="workspace-panel">
+          <section class="panel-section">
+            <div class="section-title">
+              <h2>Workspace</h2>
+              <button id="seedDemoButton" type="button">Seed Demo</button>
+            </div>
+            <form id="workspaceForm" class="stack">
+              <label>
+                Email
+                <input id="userEmail" type="email" value="student@example.com" required />
+              </label>
+              <label>
+                Name
+                <input id="displayName" type="text" value="Student" required />
+              </label>
+              <label>
+                Course
+                <input id="courseTitle" type="text" value="Algorithms" required />
+              </label>
+              <button type="submit">Create Workspace</button>
+            </form>
+            <div class="id-grid">
+              <label>
+                User ID
+                <input id="userId" type="text" />
+              </label>
+              <label>
+                Course ID
+                <input id="courseId" type="text" />
+              </label>
+            </div>
+          </section>
+
+          <section class="panel-section">
+            <div class="section-title">
+              <h2>Documents</h2>
+              <button id="refreshDocumentsButton" type="button">Refresh</button>
+            </div>
+            <form id="uploadForm" class="stack">
+              <input id="documentFile" type="file" accept=".txt,.pdf,text/plain,application/pdf" />
+              <button type="submit">Upload</button>
+            </form>
+            <div id="documentList" class="compact-list"></div>
+          </section>
+
+          <section class="panel-section">
+            <div class="section-title">
+              <h2>Metrics</h2>
+              <button id="refreshMetricsButton" type="button">Refresh</button>
+            </div>
+            <div id="metricsGrid" class="metric-grid"></div>
+          </section>
+        </aside>
+
+        <section class="demo-panel">
+          <nav class="tabs" aria-label="Demo views">
+            <button class="tab-button active" type="button" data-tab="ask">Ask</button>
+            <button class="tab-button" type="button" data-tab="quiz">Quiz</button>
+            <button class="tab-button" type="button" data-tab="plan">Plan</button>
+            <button class="tab-button" type="button" data-tab="flashcards">Flashcards</button>
+          </nav>
+
+          <section id="askTab" class="tab-pane active">
+            <form id="askForm" class="action-row">
+              <input
+                id="questionInput"
+                type="text"
+                value="What is binary search?"
+                maxlength="1000"
+                required
+              />
+              <button type="submit">Ask</button>
+            </form>
+            <div id="answerPanel" class="result-surface"></div>
+            <div id="citationList" class="evidence-list"></div>
+          </section>
+
+          <section id="quizTab" class="tab-pane">
+            <form id="quizForm" class="action-row">
+              <input id="quizTopic" type="text" value="binary search" required />
+              <select id="quizDifficulty">
+                <option value="easy">Easy</option>
+                <option value="medium" selected>Medium</option>
+                <option value="hard">Hard</option>
+              </select>
+              <button type="submit">Generate</button>
+            </form>
+            <form id="attemptForm" class="quiz-surface"></form>
+            <div id="attemptPanel" class="result-surface"></div>
+          </section>
+
+          <section id="planTab" class="tab-pane">
+            <div class="toolbar">
+              <button id="refreshPlanButton" type="button">Refresh Plan</button>
+            </div>
+            <div id="weakTopicList" class="compact-list"></div>
+            <div id="recommendationList" class="recommendation-list"></div>
+          </section>
+
+          <section id="flashcardsTab" class="tab-pane">
+            <form id="flashcardForm" class="action-row">
+              <input id="flashcardTopic" type="text" value="binary search" required />
+              <select id="flashcardDifficulty">
+                <option value="easy">Easy</option>
+                <option value="medium" selected>Medium</option>
+                <option value="hard">Hard</option>
+              </select>
+              <button type="submit">Generate</button>
+            </form>
+            <div id="flashcardList" class="flashcard-list"></div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="./app.js" defer></script>
+  </body>
+</html>

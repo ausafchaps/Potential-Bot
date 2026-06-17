@@ -38,6 +38,7 @@ Completed modules:
 - weak-topic analytics from quiz attempts
 - study recommendations from weak topics
 - flashcard generation foundation
+- local frontend demo
 
 ## Planned Capabilities
 
@@ -117,6 +118,10 @@ Admin:
 
 - `GET /admin/metrics`
 
+Frontend:
+
+- `frontend/index.html`
+
 The current flow is:
 
 ```text
@@ -138,6 +143,7 @@ create user
 -> inspect admin metrics
 -> evaluate retrieval quality
 -> optionally generate real Groq answers
+-> run the local frontend demo
 ```
 
 Retrieval supports keyword search, vector search with persisted chunk embeddings,
@@ -152,6 +158,32 @@ evaluation uses a small bundled dataset to measure the keyword, vector, and
 hybrid paths with hit rate, mean reciprocal rank, and precision at k.
 Authentication, spaced repetition, flashcard review tracking, and question-level
 concept tagging are planned but not implemented yet.
+
+## Frontend Demo
+
+The local frontend demo is a dependency-free static app in `frontend/`. It talks
+to the FastAPI backend and covers the main portfolio flow: workspace creation,
+document upload, grounded questions with citations, quiz generation and grading,
+weak-topic recommendations, flashcard generation, document summaries, and admin
+metrics.
+
+Start the backend:
+
+```powershell
+uvicorn app.main:app --reload --app-dir backend
+```
+
+Serve the frontend:
+
+```powershell
+python -m http.server 5173 --directory frontend
+```
+
+Open:
+
+```text
+http://127.0.0.1:5173
+```
 
 ## LLM Providers
 
@@ -221,6 +253,7 @@ Decision records live in `docs/decisions`.
 - `0021-study-recommendations.md`
 - `0022-flashcard-generation-foundation.md`
 - `0023-openai-embedding-provider.md`
+- `0024-frontend-demo.md`
 
 ## Branch Workflow
 

@@ -20,6 +20,12 @@ class Settings(BaseSettings):
     embedding_base_url: str = "https://api.openai.com/v1"
     embedding_timeout_seconds: float = 30.0
     embedding_dimensions: int | None = None
+    cors_origins: str = (
+        "http://127.0.0.1:5173,"
+        "http://localhost:5173,"
+        "http://127.0.0.1:5500,"
+        "http://localhost:5500"
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",

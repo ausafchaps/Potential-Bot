@@ -208,3 +208,15 @@ Milestone 23 adds real embedding provider integration:
 - provider configuration and runtime errors surfaced through vector and hybrid
   search APIs
 - mocked HTTP tests for provider request and response handling
+
+Milestone 24 adds a local frontend demo:
+
+- dependency-free static frontend in `frontend/`
+- local CORS support for `localhost:5173`
+- workspace creation through explicit user and course IDs
+- document upload and document summary inspection
+- grounded question flow with answer and citations
+- quiz generation, attempt submission, and score display
+- weak-topic analytics and study recommendations
+- flashcard generation
+- admin metric summaries
