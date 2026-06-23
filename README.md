@@ -302,3 +302,40 @@ Check Alembic model drift:
 ```powershell
 alembic check
 ```
+
+## Container Development
+
+Build the production API image:
+
+```powershell
+docker build --tag studybot:local .
+```
+
+Create the local container database schema:
+
+```powershell
+docker volume create studybot-data
+docker run --rm --volume studybot-data:/data studybot:local alembic upgrade head
+```
+
+Run the API:
+
+```powershell
+docker run --rm --name studybot-api --publish 8000:8000 --volume studybot-data:/data studybot:local
+```
+
+Verify the deployment at `http://127.0.0.1:8000/health` and open the API docs at
+`http://127.0.0.1:8000/docs`.
+
+The container runs as a non-root user and defaults to deterministic fake AI
+providers. Pass provider configuration through environment variables at runtime;
+do not copy `.env` or API keys into the image. SQLite is suitable for this local
+container workflow only. Production configuration rejects SQLite, non-HTTPS CORS
+origins, unsupported providers, and real AI providers without their required
+credentials. The production deployment will use managed PostgreSQL.
+
+## Continuous Integration
+
+The GitHub Actions workflow in `.github/workflows/ci.yml` runs on pull requests
+and pushes to `main`. It executes Ruff, the full test suite, Alembic migrations and
+model-drift detection, then builds the production API image.
