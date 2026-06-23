@@ -1,10 +1,15 @@
 import uuid
 from collections.abc import Generator
 
+import pytest
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
 from app.models import Answer, AnswerStatus, Citation, Question
+from app.services.embeddings.base import (
+    EmbeddingProviderConfigurationError,
+    EmbeddingProviderError,
+)
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
@@ -176,5 +181,42 @@ def test_question_endpoint_returns_404_for_missing_course() -> None:
         )
 
         assert response.status_code == 404
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.parametrize(
+    ("error", "expected_status"),
+    [
+        (
+            EmbeddingProviderConfigurationError("Embedding provider is not configured"),
+            503,
+        ),
+        (
+            EmbeddingProviderError("OpenAI embedding provider request failed"),
+            502,
+        ),
+    ],
+)
+def test_question_endpoint_returns_embedding_errors(monkeypatch, error, expected_status) -> None:
+    client = build_client()
+
+    def raise_embedding_error(*_args, **_kwargs):
+        raise error
+
+    try:
+        course_id = create_course(client)
+        monkeypatch.setattr(
+            "app.api.routes.questions.answer_course_question",
+            raise_embedding_error,
+        )
+
+        response = client.post(
+            f"/courses/{course_id}/questions",
+            json={"question": "What is volatility?"},
+        )
+
+        assert response.status_code == expected_status
+        assert response.json()["detail"] == str(error)
     finally:
         app.dependency_overrides.clear()

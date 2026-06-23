@@ -11,7 +11,7 @@ def test_health_check() -> None:
     assert response.json() == {
         "status": "ok",
         "app": "StudyBot",
-        "environment": "local",
+        "environment": "test",
     }
 
 
