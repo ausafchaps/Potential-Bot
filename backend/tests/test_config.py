@@ -22,7 +22,7 @@ def test_production_settings_accept_explicit_safe_configuration() -> None:
 
 
 def test_production_settings_reject_sqlite() -> None:
-    with pytest.raises(ValidationError, match="managed database"):
+    with pytest.raises(ValidationError, match="PostgreSQL database"):
         production_settings(database_url="sqlite:///./studybot.db")
 
 

@@ -2,7 +2,7 @@ from functools import lru_cache
 from typing import Self
 from urllib.parse import urlparse
 
-from pydantic import model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -10,6 +10,10 @@ class Settings(BaseSettings):
     app_name: str = "StudyBot"
     environment: str = "local"
     database_url: str = "sqlite:///./studybot.db"
+    database_pool_size: int = Field(default=5, ge=1)
+    database_max_overflow: int = Field(default=10, ge=0)
+    database_pool_timeout_seconds: float = Field(default=30.0, gt=0)
+    database_pool_recycle_seconds: int = Field(default=1800, ge=0)
     llm_provider: str = "fake"
     llm_model: str = "llama-3.1-8b-instant"
     llm_api_key: str | None = None
@@ -41,8 +45,10 @@ class Settings(BaseSettings):
         if self.environment.strip().lower() != "production":
             return self
 
-        if self.database_url.startswith("sqlite"):
-            raise ValueError("Production requires a managed database instead of SQLite")
+        if not self.database_url.lower().startswith(
+            ("postgres://", "postgresql://", "postgresql+psycopg://")
+        ):
+            raise ValueError("Production requires a PostgreSQL database")
 
         origins = [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
         parsed_origins = [urlparse(origin) for origin in origins]

@@ -39,6 +39,7 @@ Completed modules:
 - study recommendations from weak topics
 - flashcard generation foundation
 - local frontend demo
+- PostgreSQL production foundation with readiness checks and CI coverage
 
 ## Planned Capabilities
 
@@ -57,6 +58,7 @@ Completed modules:
 Health:
 
 - `GET /health`
+- `GET /ready`
 
 Users and courses:
 
@@ -254,6 +256,7 @@ Decision records live in `docs/decisions`.
 - `0022-flashcard-generation-foundation.md`
 - `0023-openai-embedding-provider.md`
 - `0024-frontend-demo.md`
+- `0025-postgresql-foundation.md`
 
 ## Branch Workflow
 
@@ -334,8 +337,38 @@ container workflow only. Production configuration rejects SQLite, non-HTTPS CORS
 origins, unsupported providers, and real AI providers without their required
 credentials. The production deployment will use managed PostgreSQL.
 
+## PostgreSQL Development
+
+Start PostgreSQL and the API together:
+
+```powershell
+docker compose up --build
+```
+
+The API waits for PostgreSQL, applies Alembic migrations, and starts on
+`http://127.0.0.1:8000`. Check application liveness at `/health` and database
+readiness at `/ready`.
+
+Stop the services without deleting database data:
+
+```powershell
+docker compose down
+```
+
+Delete the local PostgreSQL volume only when a clean database is required:
+
+```powershell
+docker compose down --volumes
+```
+
+Production and staging must provide `DATABASE_URL` as a secret. Managed-host URLs
+using `postgresql://` are normalized to Psycopg automatically. Connection pool
+size, overflow, timeout, and recycling are configurable with the corresponding
+`DATABASE_POOL_*` environment variables documented in `.env.example`.
+
 ## Continuous Integration
 
 The GitHub Actions workflow in `.github/workflows/ci.yml` runs on pull requests
 and pushes to `main`. It executes Ruff, the full test suite, Alembic migrations and
-model-drift detection, then builds the production API image.
+model-drift detection on SQLite and PostgreSQL, runs a PostgreSQL learning-flow
+integration test, then builds the production API image.
