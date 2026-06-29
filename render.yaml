@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: studybot-api-staging
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    region: oregon
+    healthCheckPath: /ready
+    preDeployCommand: python -m alembic upgrade head
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: studybot-postgres-staging
+          property: connectionString
+      - key: DATABASE_POOL_SIZE
+        value: "5"
+      - key: DATABASE_MAX_OVERFLOW
+        value: "10"
+      - key: DATABASE_POOL_TIMEOUT_SECONDS
+        value: "30"
+      - key: DATABASE_POOL_RECYCLE_SECONDS
+        value: "1800"
+      - key: LLM_PROVIDER
+        value: fake
+      - key: EMBEDDING_PROVIDER
+        value: fake
+      - key: CORS_ORIGINS
+        value: https://studybot-api-staging.onrender.com
+
+databases:
+  - name: studybot-postgres-staging
+    databaseName: studybot
+    user: studybot
+    region: oregon

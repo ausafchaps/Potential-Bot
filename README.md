@@ -40,6 +40,7 @@ Completed modules:
 - flashcard generation foundation
 - local frontend demo
 - PostgreSQL production foundation with readiness checks and CI coverage
+- staging API deployment blueprint and smoke-test workflow
 
 ## Planned Capabilities
 
@@ -257,6 +258,7 @@ Decision records live in `docs/decisions`.
 - `0023-openai-embedding-provider.md`
 - `0024-frontend-demo.md`
 - `0025-postgresql-foundation.md`
+- `0026-staging-api-deployment.md`
 
 ## Branch Workflow
 
@@ -365,6 +367,24 @@ Production and staging must provide `DATABASE_URL` as a secret. Managed-host URL
 using `postgresql://` are normalized to Psycopg automatically. Connection pool
 size, overflow, timeout, and recycling are configurable with the corresponding
 `DATABASE_POOL_*` environment variables documented in `.env.example`.
+
+## Staging Deployment
+
+StudyBot includes a Render Blueprint in `render.yaml` for a staging API service
+and managed PostgreSQL database. The staging service runs the production Docker
+image, applies Alembic migrations before deploy, uses `/ready` for readiness, and
+keeps deterministic fake AI providers enabled.
+
+Deployment instructions live in `docs/deployment/staging-render.md`.
+
+After deployment, run:
+
+```powershell
+python scripts/staging_smoke.py --base-url https://studybot-api-staging.onrender.com
+```
+
+The smoke test verifies liveness, database readiness, user and course creation,
+text ingestion, grounded answers, citations, and persistence.
 
 ## Continuous Integration
 
