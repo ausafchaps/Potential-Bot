@@ -5,6 +5,7 @@ from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
 from app.services.retrieval import score_text, tokenize_query
+from auth_helpers import authenticated_client, register_user, sign_in
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -28,11 +29,11 @@ def build_client() -> TestClient:
             db.close()
 
     app.dependency_overrides[get_db] = override_get_db
-    return TestClient(app)
+    return authenticated_client(app)
 
 
 def create_course(client: TestClient, email: str, title: str) -> str:
-    user_response = client.post("/users", json={"email": email, "display_name": "Student"})
+    user_response = register_user(client, json={"email": email, "display_name": "Student"})
     course_response = client.post(
         f"/users/{user_response.json()['id']}/courses",
         json={"title": title},
@@ -97,12 +98,14 @@ def test_search_only_returns_chunks_from_requested_course() -> None:
     try:
         algorithms_course_id = create_course(client, "algo@example.com", "Algorithms")
         biology_course_id = create_course(client, "bio@example.com", "Biology")
+        sign_in(client, "algo@example.com")
         upload_text(
             client,
             algorithms_course_id,
             "algorithms.txt",
             b"Binary search halves sorted arrays.",
         )
+        sign_in(client, "bio@example.com")
         upload_text(
             client,
             biology_course_id,
@@ -110,6 +113,7 @@ def test_search_only_returns_chunks_from_requested_course() -> None:
             b"Binary fission is a biological reproduction process.",
         )
 
+        sign_in(client, "algo@example.com")
         response = client.get(
             f"/courses/{algorithms_course_id}/search",
             params={"query": "binary"},

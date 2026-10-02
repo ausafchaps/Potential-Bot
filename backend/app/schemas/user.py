@@ -7,6 +7,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 class UserCreate(BaseModel):
     email: str = Field(min_length=3, max_length=320)
     display_name: str = Field(min_length=1, max_length=120)
+    password: str = Field(min_length=12, max_length=128, repr=False)
+
+    model_config = ConfigDict(extra="forbid")
 
     @field_validator("email")
     @classmethod
@@ -29,6 +32,7 @@ class UserResponse(BaseModel):
     id: uuid.UUID
     email: str
     display_name: str
+    is_admin: bool
     created_at: datetime
     updated_at: datetime
 

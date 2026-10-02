@@ -2,6 +2,9 @@ const state = {
   apiBase: localStorage.getItem("studybot.apiBase") || "http://127.0.0.1:8000",
   userId: localStorage.getItem("studybot.userId") || "",
   courseId: localStorage.getItem("studybot.courseId") || "",
+  token: sessionStorage.getItem("studybot.token") || "",
+  authApiBase: sessionStorage.getItem("studybot.authApiBase") || "",
+  user: null,
   quiz: null,
   selectedOptions: new Map(),
 };
@@ -10,12 +13,16 @@ const els = {
   apiBase: document.querySelector("#apiBase"),
   saveApiButton: document.querySelector("#saveApiButton"),
   seedDemoButton: document.querySelector("#seedDemoButton"),
+  authForm: document.querySelector("#authForm"),
+  password: document.querySelector("#password"),
+  logoutButton: document.querySelector("#logoutButton"),
+  accountStatus: document.querySelector("#accountStatus"),
+  courseSelect: document.querySelector("#courseSelect"),
+  metricsSection: document.querySelector("#metricsSection"),
   workspaceForm: document.querySelector("#workspaceForm"),
   userEmail: document.querySelector("#userEmail"),
   displayName: document.querySelector("#displayName"),
   courseTitle: document.querySelector("#courseTitle"),
-  userId: document.querySelector("#userId"),
-  courseId: document.querySelector("#courseId"),
   uploadForm: document.querySelector("#uploadForm"),
   documentFile: document.querySelector("#documentFile"),
   refreshDocumentsButton: document.querySelector("#refreshDocumentsButton"),
@@ -52,8 +59,114 @@ function saveState() {
   localStorage.setItem("studybot.userId", state.userId);
   localStorage.setItem("studybot.courseId", state.courseId);
   els.apiBase.value = state.apiBase;
-  els.userId.value = state.userId;
-  els.courseId.value = state.courseId;
+}
+
+
+function clearStudyViews() {
+  state.quiz = null;
+  state.selectedOptions.clear();
+  for (const key of ["documentList", "answerPanel", "citationList", "attemptForm",
+    "attemptPanel", "weakTopicList", "recommendationList", "flashcardList", "metricsGrid"]) {
+    els[key].innerHTML = "";
+  }
+}
+
+function renderAccount() {
+  els.authForm.hidden = Boolean(state.user);
+  els.logoutButton.hidden = !state.user;
+  els.metricsSection.hidden = !state.user?.is_admin;
+  els.accountStatus.textContent = state.user
+    ? `Signed in as ${state.user.display_name}` : "Sign in to your study workspace.";
+}
+
+function clearAccount() {
+  state.token = "";
+  state.authApiBase = "";
+  state.user = null;
+  state.userId = "";
+  state.courseId = "";
+  sessionStorage.removeItem("studybot.token");
+  sessionStorage.removeItem("studybot.authApiBase");
+  els.courseSelect.innerHTML = "";
+  els.password.value = "";
+  clearStudyViews();
+  saveState();
+  renderAccount();
+}
+
+async function refreshCourses() {
+  if (!state.user) return;
+  const courses = await request(`/users/${state.user.id}/courses`);
+  if (!courses.some((course) => course.id === state.courseId)) {
+    state.courseId = courses[0]?.id || "";
+  }
+  els.courseSelect.innerHTML = courses.map((course) =>
+    `<option value="${course.id}">${escapeHtml(course.title)}</option>`).join("");
+  els.courseSelect.value = state.courseId;
+  saveState();
+}
+
+async function submitAuth(event) {
+  event.preventDefault();
+  const buttons = els.authForm.querySelectorAll("button");
+  buttons.forEach((button) => setBusy(button, true));
+  try {
+    syncIdsFromInputs();
+    const mode = event.submitter?.value || "login";
+    const payload = { email: els.userEmail.value, password: els.password.value };
+    if (mode === "register") payload.display_name = els.displayName.value;
+    const session = await request(`/auth/${mode}`, {
+      method: "POST", body: JSON.stringify(payload),
+    });
+    clearAccount();
+    state.token = session.access_token;
+    state.authApiBase = state.apiBase;
+    state.user = session.user;
+    state.userId = session.user.id;
+    sessionStorage.setItem("studybot.token", state.token);
+    sessionStorage.setItem("studybot.authApiBase", state.authApiBase);
+    saveState();
+    renderAccount();
+    await refreshCourses();
+    if (state.courseId) await refreshDocuments();
+    await refreshMetrics();
+    showToast(mode === "register" ? "Account created" : "Signed in");
+  } catch (error) {
+    showToast(error.message, "bad");
+  } finally {
+    buttons.forEach((button) => setBusy(button, false));
+  }
+}
+
+async function signOut() {
+  setBusy(els.logoutButton, true);
+  try {
+    await request("/auth/logout", { method: "POST" });
+    clearAccount();
+    showToast("Signed out");
+  } catch (error) {
+    showToast(error.message, "bad");
+  } finally {
+    setBusy(els.logoutButton, false);
+  }
+}
+
+async function restoreAccount() {
+  if (!state.token || state.authApiBase !== state.apiBase) {
+    clearAccount();
+    return;
+  }
+  try {
+    state.user = await request("/auth/me");
+    state.userId = state.user.id;
+    renderAccount();
+    await refreshCourses();
+    if (state.courseId) await refreshDocuments();
+    await refreshMetrics();
+  } catch (error) {
+    clearAccount();
+    showToast(error.message, "bad");
+  }
 }
 
 function setBusy(element, busy) {
@@ -73,17 +186,27 @@ function showToast(message, type = "good") {
 }
 
 async function request(path, options = {}) {
-  const response = await fetch(`${state.apiBase}${path}`, {
+  const requestApiBase = state.apiBase;
+  const requestToken = state.token;
+  const requestCourse = state.courseId;
+  const response = await fetch(`${requestApiBase}${path}`, {
     ...options,
     headers: {
       ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
+      ...(state.token && state.authApiBase === state.apiBase
+        ? { Authorization: `Bearer ${state.token}` } : {}),
       ...(options.headers || {}),
     },
   });
 
   const text = await response.text();
   const payload = text ? JSON.parse(text) : null;
+  if (state.apiBase !== requestApiBase || state.token !== requestToken
+      || state.courseId !== requestCourse) {
+    throw new Error("Workspace changed; please try again");
+  }
   if (!response.ok) {
+    if (response.status === 401 && state.token) clearAccount();
     const detail = payload?.detail || response.statusText;
     throw new Error(Array.isArray(detail) ? detail[0]?.msg || response.statusText : detail);
   }
@@ -93,15 +216,15 @@ async function request(path, options = {}) {
 function requireCourseId() {
   syncIdsFromInputs();
   if (!state.courseId) {
-    throw new Error("Course ID is required");
+    throw new Error("Sign in and select or create a course");
   }
   return state.courseId;
 }
 
 function syncIdsFromInputs() {
-  state.apiBase = els.apiBase.value.trim().replace(/\/$/, "");
-  state.userId = els.userId.value.trim();
-  state.courseId = els.courseId.value.trim();
+  const apiBase = els.apiBase.value.trim().replace(/\/$/, "");
+  if (apiBase !== state.apiBase) clearAccount();
+  state.apiBase = apiBase;
   saveState();
 }
 
@@ -128,14 +251,8 @@ async function createWorkspace(event) {
   setBusy(event.submitter, true);
   try {
     syncIdsFromInputs();
-    const user = await request("/users", {
-      method: "POST",
-      body: JSON.stringify({
-        email: els.userEmail.value,
-        display_name: els.displayName.value,
-      }),
-    });
-    const course = await request(`/users/${user.id}/courses`, {
+    if (!state.user) throw new Error("Sign in before creating a course");
+    const course = await request(`/users/${state.user.id}/courses`, {
       method: "POST",
       body: JSON.stringify({
         title: els.courseTitle.value,
@@ -143,10 +260,11 @@ async function createWorkspace(event) {
       }),
     });
 
-    state.userId = user.id;
+    clearStudyViews();
     state.courseId = course.id;
     saveState();
-    showToast("Workspace created");
+    await refreshCourses();
+    showToast("Course created");
     await refreshDocuments();
     await refreshMetrics();
   } catch (error) {
@@ -159,19 +277,10 @@ async function createWorkspace(event) {
 async function seedDemo() {
   setBusy(els.seedDemoButton, true);
   try {
-    const unique = Date.now();
-    els.userEmail.value = `student.${unique}@example.com`;
-    els.displayName.value = "StudyBot Demo";
+    syncIdsFromInputs();
+    if (!state.user) throw new Error("Sign in before seeding a demo course");
     els.courseTitle.value = "Algorithms Demo";
-
-    const user = await request("/users", {
-      method: "POST",
-      body: JSON.stringify({
-        email: els.userEmail.value,
-        display_name: els.displayName.value,
-      }),
-    });
-    const course = await request(`/users/${user.id}/courses`, {
+    const course = await request(`/users/${state.user.id}/courses`, {
       method: "POST",
       body: JSON.stringify({
         title: els.courseTitle.value,
@@ -179,7 +288,7 @@ async function seedDemo() {
       }),
     });
 
-    state.userId = user.id;
+    clearStudyViews();
     state.courseId = course.id;
     saveState();
 
@@ -194,6 +303,7 @@ async function seedDemo() {
       body: data,
     });
 
+    await refreshCourses();
     showToast("Demo workspace ready");
     await refreshDocuments();
     await refreshMetrics();
@@ -259,6 +369,7 @@ async function refreshDocuments() {
 }
 
 async function refreshMetrics() {
+  if (!state.user?.is_admin) return;
   try {
     const metrics = await request("/admin/metrics");
     const tiles = [
@@ -587,11 +698,17 @@ function drawEvidenceCanvas() {
 
 function bindEvents() {
   els.apiBase.value = state.apiBase;
-  els.userId.value = state.userId;
-  els.courseId.value = state.courseId;
   els.saveApiButton.addEventListener("click", () => {
     syncIdsFromInputs();
     showToast("API saved");
+  });
+  els.authForm.addEventListener("submit", submitAuth);
+  els.logoutButton.addEventListener("click", signOut);
+  els.courseSelect.addEventListener("change", async () => {
+    state.courseId = els.courseSelect.value;
+    clearStudyViews();
+    saveState();
+    if (state.courseId) await refreshDocuments();
   });
   els.workspaceForm.addEventListener("submit", createWorkspace);
   els.seedDemoButton.addEventListener("click", seedDemo);
@@ -609,3 +726,5 @@ setupTabs();
 bindEvents();
 drawEvidenceCanvas();
 saveState();
+
+restoreAccount();

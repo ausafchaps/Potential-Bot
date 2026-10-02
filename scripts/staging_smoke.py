@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import secrets
 import sys
 import uuid
 from dataclasses import dataclass
@@ -59,7 +60,12 @@ def request_json(
     return json.loads(raw_body)
 
 
-def upload_text_document(base_url: str, course_id: str, timeout_seconds: float) -> dict[str, Any]:
+def upload_text_document(
+    base_url: str,
+    course_id: str,
+    timeout_seconds: float,
+    token: str,
+) -> dict[str, Any]:
     boundary = f"----studybot-smoke-{uuid.uuid4().hex}"
     content = (
         b"Spaced repetition schedules reviews just before memory fades. "
@@ -69,10 +75,7 @@ def upload_text_document(base_url: str, course_id: str, timeout_seconds: float) 
     body = b"\r\n".join(
         [
             f"--{boundary}".encode("ascii"),
-            (
-                b'Content-Disposition: form-data; name="file"; '
-                b'filename="staging-smoke-notes.txt"'
-            ),
+            (b'Content-Disposition: form-data; name="file"; filename="staging-smoke-notes.txt"'),
             b"Content-Type: text/plain",
             b"",
             content,
@@ -86,6 +89,7 @@ def upload_text_document(base_url: str, course_id: str, timeout_seconds: float) 
         headers={
             "Accept": "application/json",
             "Content-Type": f"multipart/form-data; boundary={boundary}",
+            "Authorization": f"Bearer {token}",
         },
         method="POST",
     )
@@ -109,21 +113,30 @@ def run_smoke_test(base_url: str, timeout_seconds: float) -> SmokeResult:
         raise SmokeTestError(f"/ready returned unexpected payload: {readiness}")
 
     unique_id = uuid.uuid4().hex
-    user = request_json(
+    session = request_json(
         base_url,
-        "/users",
+        "/auth/register",
         method="POST",
         payload={
             "email": f"staging-smoke-{unique_id}@example.com",
             "display_name": "Staging Smoke Student",
+            "password": secrets.token_urlsafe(24),
         },
         timeout_seconds=timeout_seconds,
     )
-    user_id = user["id"]
+    user_id = session["user"]["id"]
+    token = session["access_token"]
+    auth_headers = {"Authorization": f"Bearer {token}"}
+    current_user = request_json(
+        base_url, "/auth/me", headers=auth_headers, timeout_seconds=timeout_seconds
+    )
+    if current_user.get("id") != user_id:
+        raise SmokeTestError("Authenticated user check failed")
 
     course = request_json(
         base_url,
         f"/users/{user_id}/courses",
+        headers=auth_headers,
         method="POST",
         payload={
             "title": "Staging Smoke Course",
@@ -133,13 +146,14 @@ def run_smoke_test(base_url: str, timeout_seconds: float) -> SmokeResult:
     )
     course_id = course["id"]
 
-    document = upload_text_document(base_url, course_id, timeout_seconds)
+    document = upload_text_document(base_url, course_id, timeout_seconds, token)
     if document.get("status") != "completed" or document.get("chunk_count", 0) < 1:
         raise SmokeTestError(f"Document ingestion returned unexpected payload: {document}")
 
     answer = request_json(
         base_url,
         f"/courses/{course_id}/questions",
+        headers=auth_headers,
         method="POST",
         payload={"question": "What does spaced repetition help with?", "limit": 5},
         timeout_seconds=timeout_seconds,
@@ -152,10 +166,19 @@ def run_smoke_test(base_url: str, timeout_seconds: float) -> SmokeResult:
     persisted_course = request_json(
         base_url,
         f"/courses/{course_id}",
+        headers=auth_headers,
         timeout_seconds=timeout_seconds,
     )
     if persisted_course.get("id") != course_id:
         raise SmokeTestError(f"Course persistence check failed: {persisted_course}")
+
+    request_json(
+        base_url,
+        "/auth/logout",
+        method="POST",
+        headers=auth_headers,
+        timeout_seconds=timeout_seconds,
+    )
 
     return SmokeResult(
         user_id=user_id,

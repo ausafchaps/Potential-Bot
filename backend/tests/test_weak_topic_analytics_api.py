@@ -4,6 +4,7 @@ from collections.abc import Generator
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
+from auth_helpers import authenticated_client, register_user
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -27,12 +28,11 @@ def build_client() -> TestClient:
             db.close()
 
     app.dependency_overrides[get_db] = override_get_db
-    return TestClient(app)
+    return authenticated_client(app)
 
 
 def create_course(client: TestClient) -> str:
-    user_response = client.post(
-        "/users",
+    user_response = register_user(client,
         json={"email": "student@example.com", "display_name": "Student"},
     )
     course_response = client.post(

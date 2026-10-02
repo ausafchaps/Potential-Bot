@@ -6,7 +6,7 @@ from app.db.session import get_db
 from app.main import app
 from app.models import Course, Document, DocumentChunk, DocumentStatus, User
 from app.services.ingestion import chunk_text, estimate_token_count
-from fastapi.testclient import TestClient
+from auth_helpers import TEST_PASSWORD_HASH, authenticated_client
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -24,7 +24,8 @@ def build_test_db() -> tuple[Session, sessionmaker[Session]]:
 
 
 def seed_course(db: Session) -> Course:
-    user = User(email="student@example.com", display_name="Student")
+    user = User(email="student@example.com", display_name="Student",
+                password_hash=TEST_PASSWORD_HASH)
     course = Course(title="Algorithms", owner=user)
     db.add(course)
     db.commit()
@@ -61,7 +62,7 @@ def test_upload_text_document_persists_document_and_chunks() -> None:
     app.dependency_overrides[get_db] = override_get_db
 
     try:
-        client = TestClient(app)
+        client = authenticated_client(app, email="student@example.com")
         response = client.post(
             f"/courses/{course.id}/documents/text",
             files={
@@ -109,7 +110,7 @@ def test_upload_text_document_returns_404_for_missing_course() -> None:
     app.dependency_overrides[get_db] = override_get_db
 
     try:
-        client = TestClient(app)
+        client = authenticated_client(app, email="student@example.com")
         response = client.post(
             f"/courses/{uuid.uuid4()}/documents/text",
             files={"file": ("notes.txt", b"content", "text/plain")},
@@ -135,7 +136,7 @@ def test_upload_text_document_marks_empty_text_as_failed() -> None:
     app.dependency_overrides[get_db] = override_get_db
 
     try:
-        client = TestClient(app)
+        client = authenticated_client(app, email="student@example.com")
         response = client.post(
             f"/courses/{course.id}/documents/text",
             files={"file": ("empty.txt", b"   ", "text/plain")},

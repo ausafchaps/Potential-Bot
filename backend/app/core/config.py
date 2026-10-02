@@ -9,6 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     app_name: str = "StudyBot"
     environment: str = "local"
+    auth_session_hours: int = Field(default=24, ge=1, le=168)
     database_url: str = "sqlite:///./studybot.db"
     database_pool_size: int = Field(default=5, ge=1)
     database_max_overflow: int = Field(default=10, ge=0)
