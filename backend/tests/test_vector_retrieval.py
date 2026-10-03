@@ -14,6 +14,7 @@ from app.services.vector_retrieval import (
     ensure_course_chunk_embeddings,
     search_course_chunks_by_vector,
 )
+from auth_helpers import authenticated_client, register_user, sign_in
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
@@ -37,14 +38,13 @@ def build_client() -> TestClient:
             db.close()
 
     app.dependency_overrides[get_db] = override_get_db
-    client = TestClient(app)
+    client = authenticated_client(app)
     client.testing_session_local = testing_session_local  # type: ignore[attr-defined]
     return client
 
 
 def create_course(client: TestClient, email: str = "student@example.com") -> str:
-    user_response = client.post(
-        "/users",
+    user_response = register_user(client,
         json={"email": email, "display_name": "Student"},
     )
     course_response = client.post(
@@ -134,12 +134,14 @@ def test_vector_search_only_returns_chunks_from_requested_course() -> None:
     try:
         algorithms_course_id = create_course(client, "algo@example.com")
         biology_course_id = create_course(client, "bio@example.com")
+        sign_in(client, "algo@example.com")
         upload_text(
             client,
             algorithms_course_id,
             "algorithms.txt",
             b"Binary search quickly finds values in a sorted array.",
         )
+        sign_in(client, "bio@example.com")
         upload_text(
             client,
             biology_course_id,

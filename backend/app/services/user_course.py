@@ -1,11 +1,13 @@
 import uuid
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import Course, User
 from app.schemas.course import CourseCreate
 from app.schemas.user import UserCreate
+from app.services.auth import hash_password
 
 
 class DuplicateUserEmailError(ValueError):
@@ -25,9 +27,17 @@ def create_user(db: Session, payload: UserCreate) -> User:
     if existing_user is not None:
         raise DuplicateUserEmailError("A user with this email already exists")
 
-    user = User(email=payload.email, display_name=payload.display_name)
+    user = User(
+        email=payload.email,
+        display_name=payload.display_name,
+        password_hash=hash_password(payload.password),
+    )
     db.add(user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise DuplicateUserEmailError("A user with this email already exists") from exc
     db.refresh(user)
     return user
 

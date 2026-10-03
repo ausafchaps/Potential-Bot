@@ -3,6 +3,7 @@ import uuid
 import pytest
 from app.db.session import engine
 from app.main import app
+from auth_helpers import register_user
 from fastapi.testclient import TestClient
 
 pytestmark = pytest.mark.skipif(
@@ -18,8 +19,7 @@ def test_postgres_supports_core_learning_flow() -> None:
     readiness_response = client.get("/ready")
     assert readiness_response.status_code == 200
 
-    user_response = client.post(
-        "/users",
+    user_response = register_user(client,
         json={"email": unique_email, "display_name": "PostgreSQL Student"},
     )
     assert user_response.status_code == 201

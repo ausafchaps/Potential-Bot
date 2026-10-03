@@ -59,8 +59,16 @@ Run the staging smoke test:
 python scripts/staging_smoke.py --base-url https://studybot-api-staging.onrender.com
 ```
 
-The smoke test creates a user, creates a course, uploads a text document, asks a
-grounded question, verifies citations, and fetches the persisted course.
+The smoke test registers an account with a random password, verifies `/auth/me`,
+creates a course, uploads a text document, asks a grounded question, verifies
+citations, fetches the persisted course, and revokes its session with logout.
+
+Apply migration `20261002_0008` before running this version. Existing accounts
+remain locked until an operator sets their passwords with
+`python scripts/manage_account.py --email <email> --set-password`. Public
+registration never claims existing users or grants admin roles. Use HTTPS and
+gateway request limits on `/auth/register`, `/users`, and `/auth/login` before
+accepting real users. The frontend's HTTPS origin must be included in `CORS_ORIGINS`.
 
 ## Provider Upgrade Path
 

@@ -41,6 +41,7 @@ Completed modules:
 - local frontend demo
 - PostgreSQL production foundation with readiness checks and CI coverage
 - staging API deployment blueprint and smoke-test workflow
+- password authentication, revocable bearer sessions, course ownership, and admin roles
 
 ## Planned Capabilities
 
@@ -55,6 +56,18 @@ Completed modules:
 - Evaluate retrieval and answer quality
 
 ## Current API Surface
+
+Authentication:
+
+- `POST /auth/register` (email, display_name, password; returns user and bearer session)
+- `POST /auth/login` (email, password; returns user and bearer session)
+- `GET /auth/me`
+- `POST /auth/logout` (revokes the current session)
+
+All coursework and private user endpoints require `Authorization: Bearer <access_token>`.
+Only the owner can access a course and its resources; `/admin/metrics` requires an
+admin account. `POST /users` remains public registration, now requiring a password.
+Health and readiness remain public.
 
 Health:
 
@@ -128,7 +141,7 @@ Frontend:
 The current flow is:
 
 ```text
-create user
+register or log in
 -> create course
 -> upload text/PDF document
 -> inspect documents/chunks
@@ -159,8 +172,8 @@ Answers currently use a deterministic fake LLM provider through a provider
 interface, and grounded answers use hybrid retrieval for evidence. Retrieval
 evaluation uses a small bundled dataset to measure the keyword, vector, and
 hybrid paths with hit rate, mean reciprocal rank, and precision at k.
-Authentication, spaced repetition, flashcard review tracking, and question-level
-concept tagging are planned but not implemented yet.
+Spaced repetition, flashcard review tracking, and question-level concept tagging
+are planned but not implemented yet.
 
 ## Frontend Demo
 
@@ -168,7 +181,14 @@ The local frontend demo is a dependency-free static app in `frontend/`. It talks
 to the FastAPI backend and covers the main portfolio flow: workspace creation,
 document upload, grounded questions with citations, quiz generation and grading,
 weak-topic recommendations, flashcard generation, document summaries, and admin
-metrics.
+metrics for admin accounts. Sign up or sign in, then create or select one of your
+courses. New passwords must contain 12-128 characters.
+
+Apply the authentication migration before starting the backend:
+
+```powershell
+alembic upgrade head
+```
 
 Start the backend:
 
@@ -187,6 +207,33 @@ Open:
 ```text
 http://127.0.0.1:5173
 ```
+
+## Account Administration
+
+Accounts register as ordinary students. There is no default admin password.
+An operator with trusted server/database access can grant admin access:
+
+```powershell
+python scripts/manage_account.py --email admin@example.com --admin
+```
+
+Users created before authentication remain locked until an operator sets a password:
+
+```powershell
+python scripts/manage_account.py --email student@example.com --set-password
+```
+
+The command prompts for a password without echoing it and revokes all existing
+sessions on password changes. Use `--remove-admin` to remove the role or
+`--revoke-sessions` to sign an account out everywhere. Never set credentials using
+public registration to claim an existing account. Registration rejects duplicate
+emails, including legacy accounts.
+
+Sessions expire after `AUTH_SESSION_HOURS` (default 24). The frontend stores its
+session in sessionStorage and clears it on logout, expiry, and API changes.
+Email verification, self-service password recovery, MFA, and shared authentication
+rate limiting remain follow-up work. Public deployments require HTTPS and gateway
+request limits for registration and login.
 
 ## LLM Providers
 
@@ -259,6 +306,7 @@ Decision records live in `docs/decisions`.
 - `0024-frontend-demo.md`
 - `0025-postgresql-foundation.md`
 - `0026-staging-api-deployment.md`
+- `0027-authentication.md`
 
 ## Branch Workflow
 
@@ -384,7 +432,7 @@ python scripts/staging_smoke.py --base-url https://studybot-api-staging.onrender
 ```
 
 The smoke test verifies liveness, database readiness, user and course creation,
-text ingestion, grounded answers, citations, and persistence.
+authentication, text ingestion, grounded answers, citations, persistence, and logout.
 
 ## Continuous Integration
 

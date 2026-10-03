@@ -220,3 +220,14 @@ Milestone 24 adds a local frontend demo:
 - weak-topic analytics and study recommendations
 - flashcard generation
 - admin metric summaries
+
+Milestone 27 adds authentication and ownership:
+
+- password-required account registration with Argon2id hashes
+- login, current-user, and logout endpoints
+- database-backed hashed bearer sessions with expiry and immediate revocation
+- ownership checks on all course resources and private user endpoints
+- database admin role for global metrics
+- frontend account flow and authenticated course selection
+- safe migration of legacy users plus trusted operator credential/role management
+- authenticated learning-flow tests and staging smoke checks

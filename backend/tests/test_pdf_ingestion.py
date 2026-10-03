@@ -8,7 +8,7 @@ from app.models import Document, DocumentChunk, DocumentStatus, User
 from app.schemas.course import CourseCreate
 from app.services.pdf_ingestion import extract_pdf_pages
 from app.services.user_course import create_course_for_user
-from fastapi.testclient import TestClient
+from auth_helpers import TEST_PASSWORD_HASH, authenticated_client
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -68,7 +68,8 @@ def make_text_pdf(text: str) -> bytes:
 
 
 def seed_course(db: Session):
-    user = User(email="student@example.com", display_name="Student")
+    user = User(email="student@example.com", display_name="Student",
+                password_hash=TEST_PASSWORD_HASH)
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -98,7 +99,7 @@ def test_upload_pdf_document_persists_page_count_and_page_chunks() -> None:
     app.dependency_overrides[get_db] = override_get_db
 
     try:
-        client = TestClient(app)
+        client = authenticated_client(app, email="student@example.com")
         response = client.post(
             f"/courses/{course.id}/documents/pdf",
             files={
@@ -149,7 +150,7 @@ def test_upload_pdf_document_marks_textless_pdf_as_failed() -> None:
     app.dependency_overrides[get_db] = override_get_db
 
     try:
-        client = TestClient(app)
+        client = authenticated_client(app, email="student@example.com")
         response = client.post(
             f"/courses/{course.id}/documents/pdf",
             files={"file": ("blank.pdf", make_text_pdf("   "), "application/pdf")},
@@ -180,9 +181,11 @@ def test_upload_pdf_document_returns_415_for_non_pdf() -> None:
     app.dependency_overrides[get_db] = override_get_db
 
     try:
-        client = TestClient(app)
+        client = authenticated_client(app, email="student@example.com")
+        user = client.get("/auth/me").json()
+        course = client.post(f"/users/{user['id']}/courses", json={"title": "Algorithms"}).json()
         response = client.post(
-            f"/courses/{uuid.uuid4()}/documents/pdf",
+            f"/courses/{course['id']}/documents/pdf",
             files={"file": ("notes.txt", b"not a pdf", "text/plain")},
         )
 

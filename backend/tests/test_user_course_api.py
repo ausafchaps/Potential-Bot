@@ -4,6 +4,7 @@ from collections.abc import Generator
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
+from auth_helpers import authenticated_client, register_user
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -27,15 +28,14 @@ def build_client() -> TestClient:
             db.close()
 
     app.dependency_overrides[get_db] = override_get_db
-    return TestClient(app)
+    return authenticated_client(app)
 
 
 def test_create_and_get_user() -> None:
     client = build_client()
 
     try:
-        create_response = client.post(
-            "/users",
+        create_response = register_user(client,
             json={"email": " Student@Example.com ", "display_name": " Student "},
         )
 
@@ -57,12 +57,10 @@ def test_create_user_rejects_duplicate_email() -> None:
     client = build_client()
 
     try:
-        first_response = client.post(
-            "/users",
+        first_response = register_user(client,
             json={"email": "student@example.com", "display_name": "Student"},
         )
-        duplicate_response = client.post(
-            "/users",
+        duplicate_response = register_user(client,
             json={"email": "STUDENT@example.com", "display_name": "Student Two"},
         )
 
@@ -76,8 +74,7 @@ def test_create_and_list_courses_for_user() -> None:
     client = build_client()
 
     try:
-        user_response = client.post(
-            "/users",
+        user_response = register_user(client,
             json={"email": "student@example.com", "display_name": "Student"},
         )
         user_id = user_response.json()["id"]
@@ -123,8 +120,7 @@ def test_create_user_course_then_upload_text_document() -> None:
     client = build_client()
 
     try:
-        user_response = client.post(
-            "/users",
+        user_response = register_user(client,
             json={"email": "student@example.com", "display_name": "Student"},
         )
         course_response = client.post(

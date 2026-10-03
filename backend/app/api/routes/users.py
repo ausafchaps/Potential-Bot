@@ -4,6 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.api.dependencies import require_resource_owner
 from app.db.session import get_db
 from app.schemas.course import CourseCreate, CourseResponse
 from app.schemas.user import UserCreate, UserResponse
@@ -30,7 +31,8 @@ def create_user_endpoint(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
 
-@router.get("/{user_id}", response_model=UserResponse)
+@router.get("/{user_id}", response_model=UserResponse,
+            dependencies=[Depends(require_resource_owner)])
 def get_user_endpoint(
     user_id: uuid.UUID,
     db: Annotated[Session, Depends(get_db)],
@@ -45,6 +47,7 @@ def get_user_endpoint(
     "/{user_id}/courses",
     response_model=CourseResponse,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_resource_owner)],
 )
 def create_course_endpoint(
     user_id: uuid.UUID,
@@ -57,7 +60,8 @@ def create_course_endpoint(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
-@router.get("/{user_id}/courses", response_model=list[CourseResponse])
+@router.get("/{user_id}/courses", response_model=list[CourseResponse],
+            dependencies=[Depends(require_resource_owner)])
 def list_courses_endpoint(
     user_id: uuid.UUID,
     db: Annotated[Session, Depends(get_db)],

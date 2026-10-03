@@ -27,34 +27,42 @@
         <aside class="workspace-panel">
           <section class="panel-section">
             <div class="section-title">
+              <h2>Account</h2>
+              <button id="logoutButton" type="button" hidden>Sign out</button>
+            </div>
+            <p id="accountStatus" role="status">Sign in to your study workspace.</p>
+            <form id="authForm" class="stack">
+              <label>
+                Email
+                <input id="userEmail" type="email" autocomplete="username" required />
+              </label>
+              <label>
+                Name (for a new account)
+                <input id="displayName" type="text" autocomplete="name" maxlength="120" />
+              </label>
+              <label>
+                Password
+                <input id="password" type="password" autocomplete="current-password"
+                       maxlength="128" required />
+              </label>
+              <p>New accounts require a password of at least 12 characters.</p>
+              <button type="submit" value="login">Sign in</button>
+              <button type="submit" value="register">Create account</button>
+            </form>
+          </section>
+          <section class="panel-section">
+            <div class="section-title">
               <h2>Workspace</h2>
               <button id="seedDemoButton" type="button">Seed Demo</button>
             </div>
             <form id="workspaceForm" class="stack">
               <label>
-                Email
-                <input id="userEmail" type="email" value="student@example.com" required />
-              </label>
-              <label>
-                Name
-                <input id="displayName" type="text" value="Student" required />
-              </label>
-              <label>
                 Course
                 <input id="courseTitle" type="text" value="Algorithms" required />
               </label>
-              <button type="submit">Create Workspace</button>
+              <button type="submit">Create Course</button>
             </form>
-            <div class="id-grid">
-              <label>
-                User ID
-                <input id="userId" type="text" />
-              </label>
-              <label>
-                Course ID
-                <input id="courseId" type="text" />
-              </label>
-            </div>
+            <label>My courses <select id="courseSelect"></select></label>
           </section>
 
           <section class="panel-section">
@@ -69,7 +77,7 @@
             <div id="documentList" class="compact-list"></div>
           </section>
 
-          <section class="panel-section">
+          <section id="metricsSection" class="panel-section" hidden>
             <div class="section-title">
               <h2>Metrics</h2>
               <button id="refreshMetricsButton" type="button">Refresh</button>

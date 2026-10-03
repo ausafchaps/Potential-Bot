@@ -3,6 +3,7 @@ from collections.abc import Generator
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
+from auth_helpers import authenticated_client, register_user, sign_in
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -26,12 +27,11 @@ def build_client() -> TestClient:
             db.close()
 
     app.dependency_overrides[get_db] = override_get_db
-    return TestClient(app)
+    return authenticated_client(app, admin=True)
 
 
 def create_populated_metrics_fixture(client: TestClient) -> None:
-    user_response = client.post(
-        "/users",
+    user_response = register_user(client,
         json={"email": "student@example.com", "display_name": "Student"},
     )
     course_response = client.post(
@@ -74,7 +74,7 @@ def create_populated_metrics_fixture(client: TestClient) -> None:
     ).status_code == 201
 
 
-def test_admin_metrics_empty_database() -> None:
+def test_admin_metrics_without_learning_data() -> None:
     client = build_client()
 
     try:
@@ -83,7 +83,7 @@ def test_admin_metrics_empty_database() -> None:
         assert response.status_code == 200
         assert response.json() == {
             "usage": {
-                "users": 0,
+                "users": 1,
                 "courses": 0,
                 "documents": 0,
                 "document_chunks": 0,
@@ -129,13 +129,14 @@ def test_admin_metrics_populated_database() -> None:
 
     try:
         create_populated_metrics_fixture(client)
+        sign_in(client, "fixture@example.com")
 
         response = client.get("/admin/metrics")
 
         assert response.status_code == 200
         payload = response.json()
         assert payload["usage"] == {
-            "users": 1,
+            "users": 2,
             "courses": 1,
             "documents": 1,
             "document_chunks": 1,
