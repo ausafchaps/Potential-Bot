@@ -1,5 +1,8 @@
+const defaultApiBase = window.location.protocol === "https:"
+  ? window.location.origin : "http://127.0.0.1:8000";
+
 const state = {
-  apiBase: localStorage.getItem("studybot.apiBase") || "http://127.0.0.1:8000",
+  apiBase: localStorage.getItem("studybot.apiBase") || defaultApiBase,
   userId: localStorage.getItem("studybot.userId") || "",
   courseId: localStorage.getItem("studybot.courseId") || "",
   token: sessionStorage.getItem("studybot.token") || "",

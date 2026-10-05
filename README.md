@@ -423,7 +423,10 @@ and managed PostgreSQL database. The staging service runs the production Docker
 image, applies Alembic migrations before deploy, uses `/ready` for readiness, and
 keeps deterministic fake AI providers enabled.
 
-Deployment instructions live in `docs/deployment/staging-render.md`.
+For free personal staging, Vercel Hobby can host the frontend and API with a
+separate Neon Free PostgreSQL project. Setup, environment variables, migrations,
+and upload limits are documented in [the Vercel staging guide](docs/deployment/staging-vercel.md).
+The Render alternative is documented in `docs/deployment/staging-render.md`.
 
 After deployment, run:
 

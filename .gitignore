@@ -35,3 +35,7 @@ uploads/
 Thumbs.db
 .idea/
 .vscode/
+
+# Vercel local metadata and generated CDN assets
+.vercel/
+public/
