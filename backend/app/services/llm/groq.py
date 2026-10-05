@@ -48,8 +48,15 @@ class GroqLLMProvider:
                 {"role": "user", "content": request.prompt},
             ],
             "temperature": 0.2,
-            "max_tokens": 600,
+            # Quizzes and flashcards need room for complete JSON, and reasoning
+            # models count their reasoning against this same completion budget.
+            "max_completion_tokens": 4096,
         }
+        if self.model in {"openai/gpt-oss-20b", "openai/gpt-oss-120b"}:
+            payload["reasoning_effort"] = "low"
+            payload["include_reasoning"] = False
+        if request.json_output:
+            payload["response_format"] = {"type": "json_object"}
 
         try:
             response = self.http_client.post(
@@ -69,13 +76,17 @@ class GroqLLMProvider:
             raise LLMProviderError("Groq provider returned invalid JSON") from exc
 
         try:
-            text = response_payload["choices"][0]["message"]["content"]
+            choice = response_payload["choices"][0]
+            text = choice["message"]["content"]
         except (KeyError, IndexError, TypeError) as exc:
             raise LLMProviderError("Groq provider response did not include answer text") from exc
 
-        normalized_text = str(text).strip()
+        if choice.get("finish_reason") == "length":
+            raise LLMProviderError("Groq provider response exceeded the completion token limit")
+        if not isinstance(text, str):
+            raise LLMProviderError("Groq provider response did not include answer text")
+        normalized_text = text.strip()
         if not normalized_text:
             raise LLMProviderError("Groq provider returned empty answer text")
 
         return LLMResponse(text=normalized_text)
-

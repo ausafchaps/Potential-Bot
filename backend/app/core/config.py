@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     database_pool_timeout_seconds: float = Field(default=30.0, gt=0)
     database_pool_recycle_seconds: int = Field(default=1800, ge=0)
     llm_provider: str = "fake"
-    llm_model: str = "llama-3.1-8b-instant"
+    llm_model: str = "openai/gpt-oss-20b"
     llm_api_key: str | None = None
     groq_api_key: str | None = None
     llm_base_url: str = "https://api.groq.com/openai/v1"

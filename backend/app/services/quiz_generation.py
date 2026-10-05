@@ -153,6 +153,7 @@ def generate_quiz_from_evidence(
             question=f"Generate a quiz about {payload.topic}",
             prompt=prompt,
             context_chunks=evidence_chunks,  # type: ignore[arg-type]
+            json_output=True,
         )
     )
     return parse_generated_quiz_json(response.text, question_count=payload.question_count)

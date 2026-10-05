@@ -269,7 +269,7 @@ To use Groq for real answers, set:
 ```powershell
 LLM_PROVIDER=groq
 GROQ_API_KEY=your-api-key
-LLM_MODEL=llama-3.1-8b-instant
+LLM_MODEL=openai/gpt-oss-20b
 ```
 
 `LLM_API_KEY` can also be used instead of `GROQ_API_KEY`. Tests do not call real
