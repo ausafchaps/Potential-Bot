@@ -1,7 +1,6 @@
-"""Apply staging migrations, then publish the frontend to Vercel's CDN."""
+"""Apply staging migrations before Vercel publishes the application."""
 
 import os
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -23,8 +22,7 @@ def main() -> None:
         hide_password=False
     )
     subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"], cwd=root, check=True)
-    shutil.copytree(root / "frontend", root / "public", dirs_exist_ok=True)
-    print("Migrations complete; frontend prepared for the CDN")
+    print("Migrations complete; application ready for deployment")
 
 
 if __name__ == "__main__":

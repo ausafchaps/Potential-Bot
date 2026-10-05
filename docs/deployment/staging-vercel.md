@@ -6,8 +6,9 @@ enabled so smoke checks do not incur AI charges.
 
 Import this repository at its root with the FastAPI preset. Select the branch
 containing `index.py` and `vercel.json`. The build script in `pyproject.toml`
-applies Alembic migrations before copying the frontend into `public/` for the CDN.
-A failed migration fails the deployment.
+applies Alembic migrations before deployment. The Vercel entry point mounts only
+`frontend/` after all API routes, and Vercel promotes these public assets to its
+CDN. A failed migration fails the deployment.
 
 Set these environment variables for the staging project's Production environment
 (Vercel's environment name does not make this a real production database):
