@@ -3,6 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 
+from app.api.auth_rate_limit import limit_login_email, limit_login_ip, limit_signup
 from app.api.dependencies import CurrentUser, Database, get_current_session
 from app.models import AuthSession, User
 from app.schemas.auth import LoginRequest, SessionResponse
@@ -23,7 +24,8 @@ def session_response(db: Database, user, response: Response) -> SessionResponse:
     )
 
 
-@router.post("/register", response_model=SessionResponse, status_code=201)
+@router.post("/register", response_model=SessionResponse, status_code=201,
+             dependencies=[Depends(limit_signup)])
 def register(payload: UserCreate, db: Database, response: Response) -> SessionResponse:
     try:
         user = create_user(db, payload)
@@ -32,8 +34,10 @@ def register(payload: UserCreate, db: Database, response: Response) -> SessionRe
     return session_response(db, user, response)
 
 
-@router.post("/login", response_model=SessionResponse)
+@router.post("/login", response_model=SessionResponse,
+             dependencies=[Depends(limit_login_ip)])
 def login(payload: LoginRequest, db: Database, response: Response) -> SessionResponse:
+    limit_login_email(db, payload.email)
     user = authenticate(db, payload.email, payload.password)
     if user is None:
         raise HTTPException(

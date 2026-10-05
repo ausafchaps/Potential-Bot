@@ -4,7 +4,7 @@ from pathlib import Path
 from alembic import command
 from alembic.config import Config
 from app.core.config import settings
-from app.models import Course, User
+from app.models import AuthRateLimit, Course, User
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import Session
 
@@ -36,6 +36,14 @@ def test_auth_migration_preserves_legacy_accounts_and_courses(tmp_path, monkeypa
         assert user.password_hash is None
         assert user.is_admin is False
         assert db.get(Course, course_id).owner_id == user_id
+        db.add(AuthRateLimit(bucket_key="a" * 64, attempts=1, expires_at=123))
+        db.commit()
+
+    command.downgrade(config, "20261002_0008")
+    assert "auth_rate_limits" not in inspect(engine).get_table_names()
+    assert "auth_sessions" in inspect(engine).get_table_names()
+    command.upgrade(config, "head")
+    command.check(config)
 
     command.downgrade(config, "20260611_0007")
     assert "auth_sessions" not in inspect(engine).get_table_names()

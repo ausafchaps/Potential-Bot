@@ -4,6 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.api.auth_rate_limit import limit_signup
 from app.api.dependencies import require_resource_owner
 from app.db.session import get_db
 from app.schemas.course import CourseCreate, CourseResponse
@@ -20,7 +21,8 @@ from app.services.user_course import (
 router = APIRouter(prefix="/users", tags=["users"])
 
 
-@router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED,
+             dependencies=[Depends(limit_signup)])
 def create_user_endpoint(
     payload: UserCreate,
     db: Annotated[Session, Depends(get_db)],

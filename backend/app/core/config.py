@@ -1,5 +1,6 @@
 from functools import lru_cache
-from typing import Self
+from os import getenv
+from typing import Literal, Self
 from urllib.parse import urlparse
 
 from pydantic import Field, model_validator
@@ -10,6 +11,14 @@ class Settings(BaseSettings):
     app_name: str = "StudyBot"
     environment: str = "local"
     auth_session_hours: int = Field(default=24, ge=1, le=168)
+    auth_login_ip_limit: int = Field(default=30, ge=1, le=10000)
+    auth_login_email_limit: int = Field(default=10, ge=1, le=10000)
+    auth_login_window_seconds: int = Field(default=900, ge=1, le=86400)
+    auth_signup_ip_limit: int = Field(default=10, ge=1, le=10000)
+    auth_signup_window_seconds: int = Field(default=3600, ge=1, le=86400)
+    auth_client_ip_source: Literal["direct", "vercel"] = Field(
+        default_factory=lambda: "vercel" if getenv("VERCEL") == "1" else "direct"
+    )
     database_url: str = "sqlite:///./studybot.db"
     database_pool_size: int = Field(default=5, ge=1)
     database_max_overflow: int = Field(default=10, ge=0)
