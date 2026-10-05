@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     groq_api_key: str | None = None
     llm_base_url: str = "https://api.groq.com/openai/v1"
     llm_timeout_seconds: float = 30.0
+    ai_user_daily_limit: int = Field(default=20, ge=1, le=100000)
+    ai_user_minute_limit: int = Field(default=3, ge=1, le=10000)
+    ai_project_daily_limit: int = Field(default=100, ge=1, le=1000000)
+    ai_project_minute_limit: int = Field(default=10, ge=1, le=10000)
     embedding_provider: str = "fake"
     embedding_model: str = "text-embedding-3-small"
     embedding_api_key: str | None = None

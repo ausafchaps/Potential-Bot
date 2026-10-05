@@ -20,6 +20,10 @@ const els = {
   password: document.querySelector("#password"),
   logoutButton: document.querySelector("#logoutButton"),
   accountStatus: document.querySelector("#accountStatus"),
+  aiUsageSection: document.querySelector("#aiUsageSection"),
+  aiUsageStatus: document.querySelector("#aiUsageStatus"),
+  aiUsageReset: document.querySelector("#aiUsageReset"),
+  refreshAiUsageButton: document.querySelector("#refreshAiUsageButton"),
   courseSelect: document.querySelector("#courseSelect"),
   metricsSection: document.querySelector("#metricsSection"),
   workspaceForm: document.querySelector("#workspaceForm"),
@@ -78,6 +82,7 @@ function renderAccount() {
   els.authForm.hidden = Boolean(state.user);
   els.logoutButton.hidden = !state.user;
   els.metricsSection.hidden = !state.user?.is_admin;
+  els.aiUsageSection.hidden = !state.user;
   els.accountStatus.textContent = state.user
     ? `Signed in as ${state.user.display_name}` : "Sign in to your study workspace.";
 }
@@ -92,6 +97,8 @@ function clearAccount() {
   sessionStorage.removeItem("studybot.authApiBase");
   els.courseSelect.innerHTML = "";
   els.password.value = "";
+  els.aiUsageStatus.textContent = "";
+  els.aiUsageReset.textContent = "";
   clearStudyViews();
   saveState();
   renderAccount();
@@ -130,6 +137,7 @@ async function submitAuth(event) {
     sessionStorage.setItem("studybot.authApiBase", state.authApiBase);
     saveState();
     renderAccount();
+    await refreshAiUsage();
     await refreshCourses();
     if (state.courseId) await refreshDocuments();
     await refreshMetrics();
@@ -163,6 +171,7 @@ async function restoreAccount() {
     state.user = await request("/auth/me");
     state.userId = state.user.id;
     renderAccount();
+    await refreshAiUsage();
     await refreshCourses();
     if (state.courseId) await refreshDocuments();
     await refreshMetrics();
@@ -208,6 +217,13 @@ async function request(path, options = {}) {
       || state.courseId !== requestCourse) {
     throw new Error("Workspace changed; please try again");
   }
+  if (options.method === "POST" && /\/courses\/[^/]+\/(questions|quizzes|flashcard-sets)$/.test(path)) {
+    await refreshAiUsage();
+    if (state.apiBase !== requestApiBase || state.token !== requestToken
+        || state.courseId !== requestCourse) {
+      throw new Error("Workspace changed; please try again");
+    }
+  }
   if (!response.ok) {
     if (response.status === 401 && state.token) clearAccount();
     const detail = payload?.detail || response.statusText;
@@ -215,6 +231,35 @@ async function request(path, options = {}) {
   }
   return payload;
 }
+
+async function refreshAiUsage() {
+  if (!state.user) return;
+  const token = state.token;
+  const apiBase = state.apiBase;
+  try {
+    const usage = await request("/auth/ai-usage");
+    if (!usage.enabled) {
+      els.aiUsageStatus.textContent = "Demo mode: AI allowance is not used.";
+      els.aiUsageReset.textContent = "";
+      return;
+    }
+    els.aiUsageStatus.textContent = `${usage.day.remaining} of ${usage.day.limit} generations left today; `
+      + `${usage.minute.remaining} of ${usage.minute.limit} available this minute. `
+      + "Answers, quizzes, and flashcards share this allowance.";
+    els.aiUsageReset.textContent = `Daily reset: ${new Date(usage.day.resets_at).toLocaleString()} `
+      + "(midnight UTC). Shared service limits also apply.";
+  } catch (error) {
+    if (state.token !== token || state.apiBase !== apiBase || !state.user) return;
+    els.aiUsageStatus.textContent = "AI allowance could not be loaded. Refresh to try again.";
+    els.aiUsageReset.textContent = "";
+  }
+}
+
+els.refreshAiUsageButton.addEventListener("click", async () => {
+  setBusy(els.refreshAiUsageButton, true);
+  try { await refreshAiUsage(); }
+  finally { setBusy(els.refreshAiUsageButton, false); }
+});
 
 function requireCourseId() {
   syncIdsFromInputs();

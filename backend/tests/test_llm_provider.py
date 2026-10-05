@@ -6,6 +6,7 @@ from app.core.config import Settings
 from app.services.llm.base import (
     LLMProviderConfigurationError,
     LLMProviderError,
+    LLMProviderRateLimited,
     LLMRequest,
 )
 from app.services.llm.factory import get_llm_provider
@@ -90,7 +91,7 @@ def test_groq_provider_sends_grounded_prompt_and_parses_answer() -> None:
 
 def test_groq_provider_raises_provider_error_for_http_failures() -> None:
     client = httpx.Client(
-        transport=httpx.MockTransport(lambda _request: httpx.Response(429, json={})),
+        transport=httpx.MockTransport(lambda _request: httpx.Response(500, json={})),
         base_url="https://api.groq.com/openai/v1",
     )
     provider = GroqLLMProvider(
@@ -101,10 +102,29 @@ def test_groq_provider_raises_provider_error_for_http_failures() -> None:
         http_client=client,
     )
 
-    with pytest.raises(LLMProviderError, match="HTTP 429"):
+    with pytest.raises(LLMProviderError, match="HTTP 500"):
         provider.generate_answer(
             LLMRequest(question="What is binary search?", prompt="Prompt", context_chunks=[])
         )
+
+
+@pytest.mark.parametrize("header,expected", [("120", 120), ("invalid", 60), ("-1", 1)])
+def test_groq_provider_preserves_safe_retry_delay(header, expected):
+    client = httpx.Client(
+        transport=httpx.MockTransport(lambda _: httpx.Response(
+            429, headers={"Retry-After": header}, json={"error": "private provider detail"},
+        )), base_url="https://api.groq.com/openai/v1",
+    )
+    provider = GroqLLMProvider(
+        api_key="test-key", model="openai/gpt-oss-20b",
+        base_url="https://api.groq.com/openai/v1", timeout_seconds=30, http_client=client,
+    )
+    with pytest.raises(LLMProviderRateLimited) as exc:
+        provider.generate_answer(
+            LLMRequest(question="Question", prompt="Prompt", context_chunks=[])
+        )
+    assert exc.value.retry_after == expected
+    assert "private" not in str(exc.value)
 
 
 def test_groq_provider_raises_provider_error_for_missing_answer_text() -> None:

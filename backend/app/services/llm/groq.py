@@ -3,6 +3,7 @@ import httpx
 from app.services.llm.base import (
     LLMProviderConfigurationError,
     LLMProviderError,
+    LLMProviderRateLimited,
     LLMRequest,
     LLMResponse,
 )
@@ -67,6 +68,12 @@ class GroqLLMProvider:
             response.raise_for_status()
             response_payload = response.json()
         except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 429:
+                try:
+                    retry = int(exc.response.headers.get("Retry-After", "60"))
+                except ValueError:
+                    retry = 60
+                raise LLMProviderRateLimited(max(1, min(retry, 86400))) from exc
             raise LLMProviderError(
                 f"Groq provider returned HTTP {exc.response.status_code}"
             ) from exc

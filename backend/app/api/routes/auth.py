@@ -6,8 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from app.api.auth_rate_limit import limit_login_email, limit_login_ip, limit_signup
 from app.api.dependencies import CurrentUser, Database, get_current_session
 from app.models import AuthSession, User
+from app.schemas.ai_usage import AIUsageResponse
 from app.schemas.auth import LoginRequest, SessionResponse
 from app.schemas.user import UserCreate, UserResponse
+from app.services.ai_usage import get_ai_usage
 from app.services.auth import authenticate, create_session
 from app.services.user_course import DuplicateUserEmailError, create_user
 
@@ -56,3 +58,9 @@ def me(user: CurrentUser, response: Response) -> User:
 def logout(db: Database, session: Annotated[AuthSession, Depends(get_current_session)]) -> None:
     db.delete(session)
     db.commit()
+
+
+@router.get("/ai-usage", response_model=AIUsageResponse)
+def ai_usage(db: Database, user: CurrentUser, response: Response) -> AIUsageResponse:
+    response.headers["Cache-Control"] = "no-store"
+    return get_ai_usage(db, user.id)

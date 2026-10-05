@@ -14,6 +14,7 @@ from app.models import (
     FlashcardSetStatus,
 )
 from app.schemas.flashcard import FlashcardSetCreate
+from app.services.ai_usage import consume_course_generation
 from app.services.answer_orchestrator import (
     GroundedEvidenceChunk,
     build_grounded_prompt,
@@ -74,6 +75,7 @@ def create_course_flashcard_set(
         return get_flashcard_set(db, flashcard_set.id)
 
     prompt = build_flashcard_prompt(payload, evidence_chunks)
+    consume_course_generation(db, course_id, resolved_provider.provider_name)
     generated_set = generate_flashcards_from_evidence(
         provider=resolved_provider,
         payload=payload,

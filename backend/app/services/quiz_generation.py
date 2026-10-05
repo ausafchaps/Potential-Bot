@@ -15,6 +15,7 @@ from app.models import (
     QuizStatus,
 )
 from app.schemas.quiz import QuizCreate
+from app.services.ai_usage import consume_course_generation
 from app.services.answer_orchestrator import (
     GroundedEvidenceChunk,
     build_grounded_prompt,
@@ -82,6 +83,7 @@ def create_course_quiz(
         return get_quiz(db, quiz.id)
 
     prompt = build_quiz_prompt(payload, evidence_chunks)
+    consume_course_generation(db, course_id, resolved_provider.provider_name)
     generated_quiz = generate_quiz_from_evidence(
         provider=resolved_provider,
         payload=payload,

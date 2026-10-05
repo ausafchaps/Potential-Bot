@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session
 
 from app.models import Answer, AnswerStatus, Citation, Question
+from app.services.ai_usage import consume_course_generation
 from app.services.hybrid_retrieval import HybridRankedChunk, search_course_chunks_by_hybrid
 from app.services.llm.base import LLMProvider, LLMRequest
 from app.services.llm.factory import get_llm_provider
@@ -68,10 +69,10 @@ def answer_course_question(
     )
 
     question = Question(course_id=course_id, text=question_text)
-    db.add(question)
-    db.flush()
 
     if not retrieved_chunks:
+        db.add(question)
+        db.flush()
         answer = Answer(
             question_id=question.id,
             status=AnswerStatus.insufficient_evidence,
@@ -92,9 +93,12 @@ def answer_course_question(
         )
 
     prompt = build_grounded_prompt(question_text, retrieved_chunks)
+    consume_course_generation(db, course_id, provider.provider_name)
     llm_response = provider.generate_answer(
         LLMRequest(question=question_text, prompt=prompt, context_chunks=retrieved_chunks)
     )
+    db.add(question)
+    db.flush()
     answer = Answer(
         question_id=question.id,
         status=AnswerStatus.answered,

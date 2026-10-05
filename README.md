@@ -43,6 +43,7 @@ Completed modules:
 - staging API deployment blueprint and smoke-test workflow
 - password authentication, revocable bearer sessions, course ownership, and admin roles
 - shared database-backed login and signup rate limiting
+- shared per-user and project AI generation budgets with a visible allowance
 
 ## Planned Capabilities
 
@@ -63,6 +64,7 @@ Authentication:
 - `POST /auth/register` (email, display_name, password; returns user and bearer session)
 - `POST /auth/login` (email, password; returns user and bearer session)
 - `GET /auth/me`
+- `GET /auth/ai-usage` (the signed-in student's remaining AI allowance and reset times)
 - `POST /auth/logout` (revokes the current session)
 
 All coursework and private user endpoints require `Authorization: Bearer <access_token>`.
@@ -169,8 +171,9 @@ embedding provider is deterministic and local, and OpenAI embeddings can be
 enabled through environment settings for a more realistic retrieval demo before
 `pgvector`. PDF ingestion supports text-based PDFs only; scanned/image PDFs need
 a later OCR pipeline.
-Answers currently use a deterministic fake LLM provider through a provider
-interface, and grounded answers use hybrid retrieval for evidence. Retrieval
+Local development defaults to a deterministic fake LLM provider. Staging uses
+Groq's `openai/gpt-oss-20b` for real answers, quizzes, and flashcards; grounded
+answers use hybrid retrieval for evidence. Retrieval
 evaluation uses a small bundled dataset to measure the keyword, vector, and
 hybrid paths with hit rate, mean reciprocal rank, and precision at k.
 Spaced repetition, flashcard review tracking, and question-level concept tagging
@@ -275,6 +278,29 @@ LLM_MODEL=openai/gpt-oss-20b
 `LLM_API_KEY` can also be used instead of `GROQ_API_KEY`. Tests do not call real
 provider APIs.
 
+Real generations share one allowance across every course, answer, quiz, and
+flashcard set. Defaults are 20 attempts per student per UTC day, 3 per minute,
+100 for the whole project per UTC day, and 10 per minute. Set positive
+`AI_USER_DAILY_LIMIT`, `AI_USER_MINUTE_LIMIT`, `AI_PROJECT_DAILY_LIMIT`, and
+`AI_PROJECT_MINUTE_LIMIT` values to tune them. There is no admin exemption.
+One quiz or flashcard set counts as one attempt regardless of its item count.
+Fake-provider requests and insufficient-evidence results use no allowance.
+
+Reservations are atomic database counters shared across API instances. They
+commit before the provider call; failures and timeouts count because the provider
+may have performed work. Rejected requests consume no allowance. HTTP 429 returns
+`Retry-After` and a readable wait message. Counter storage failures block generation
+with 503; reading existing study material and logout remain available. The frontend
+shows remaining daily/minute allowance and refreshes it after each generation.
+Groq throttling also returns a readable 429 with a safe retry delay.
+
+These are request-count budgets, not token metering. They reduce usage but do not
+guarantee staying inside provider token limits, especially for larger requests or
+other apps sharing the Groq organization. Provider limits can be reached sooner.
+Fixed windows allow bursts around their boundaries. Expired buckets are cleaned
+up in bounded batches, and contain no prompts, documents, or plaintext user IDs.
+Apply `alembic upgrade head` (including `20261005_0010`) before serving this version.
+
 ## Embedding Providers
 
 StudyBot also uses a provider interface for vector retrieval. The default
@@ -328,6 +354,7 @@ Decision records live in `docs/decisions`.
 - `0026-staging-api-deployment.md`
 - `0027-authentication.md`
 - `0028-authentication-rate-limiting.md`
+- `0029-ai-usage-limits.md`
 
 ## Branch Workflow
 
