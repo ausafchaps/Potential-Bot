@@ -20,7 +20,11 @@ from app.services.flashcard_generation import (
     get_flashcard_set,
     list_course_flashcard_sets,
 )
-from app.services.llm.base import LLMProviderConfigurationError, LLMProviderError
+from app.services.llm.base import (
+    LLMProviderConfigurationError,
+    LLMProviderError,
+    LLMProviderRateLimited,
+)
 from app.services.retrieval import CourseNotFoundError, EmptySearchQueryError
 
 router = APIRouter(tags=["flashcards"])
@@ -98,6 +102,8 @@ def create_course_flashcard_set_endpoint(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=str(exc),
         ) from exc
+    except LLMProviderRateLimited:
+        raise
     except LLMProviderError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

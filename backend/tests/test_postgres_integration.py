@@ -2,9 +2,11 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
+from app.core.config import settings
 from app.db.session import engine
 from app.main import app
-from app.models import AuthRateLimit
+from app.models import AIUsageBucket, AuthRateLimit
+from app.services import ai_usage
 from app.services import auth_rate_limit as limiter
 from app.services.auth_rate_limit import AttemptLimit, AuthRateLimited, consume_attempts
 from auth_helpers import register_user
@@ -79,4 +81,30 @@ def test_postgres_rate_limits_are_atomic_across_connections(monkeypatch) -> None
         # This CI database contains only disposable integration test data.
         with Session(engine) as db:
             db.execute(delete(AuthRateLimit))
+            db.commit()
+
+
+@pytest.mark.parametrize("scope", ["user", "project"])
+def test_postgres_ai_budgets_are_atomic(monkeypatch, scope):
+    monkeypatch.setattr(ai_usage.time, "time", lambda: 172800.0)
+    monkeypatch.setattr(settings, "ai_user_daily_limit", 5 if scope == "user" else 100)
+    monkeypatch.setattr(settings, "ai_project_daily_limit", 5 if scope == "project" else 100)
+    monkeypatch.setattr(settings, "ai_user_minute_limit", 100)
+    monkeypatch.setattr(settings, "ai_project_minute_limit", 100)
+    user = uuid.uuid4()
+
+    def attempt(_):
+        with Session(engine) as db:
+            try:
+                ai_usage.consume_generation(db, user if scope == "user" else uuid.uuid4())
+                return True
+            except ai_usage.AIUsageLimited:
+                return False
+
+    try:
+        with ThreadPoolExecutor(max_workers=8) as workers:
+            assert sum(workers.map(attempt, range(20))) == 5
+    finally:
+        with Session(engine) as db:
+            db.execute(delete(AIUsageBucket))
             db.commit()

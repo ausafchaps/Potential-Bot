@@ -25,6 +25,12 @@ class LLMProviderError(RuntimeError):
     pass
 
 
+class LLMProviderRateLimited(LLMProviderError):
+    def __init__(self, retry_after: int = 60):
+        self.retry_after = retry_after
+        super().__init__("AI provider usage limit reached")
+
+
 class LLMProvider(Protocol):
     provider_name: str
 

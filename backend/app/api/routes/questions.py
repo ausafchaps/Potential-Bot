@@ -16,7 +16,11 @@ from app.services.embeddings.base import (
     EmbeddingProviderConfigurationError,
     EmbeddingProviderError,
 )
-from app.services.llm.base import LLMProviderConfigurationError, LLMProviderError
+from app.services.llm.base import (
+    LLMProviderConfigurationError,
+    LLMProviderError,
+    LLMProviderRateLimited,
+)
 from app.services.retrieval import CourseNotFoundError, EmptySearchQueryError
 
 router = APIRouter(prefix="/courses/{course_id}/questions", tags=["questions"])
@@ -57,6 +61,8 @@ def ask_course_question_endpoint(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=str(exc),
         ) from exc
+    except LLMProviderRateLimited:
+        raise
     except LLMProviderError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

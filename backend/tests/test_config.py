@@ -24,6 +24,8 @@ def test_production_settings_accept_explicit_safe_configuration() -> None:
 @pytest.mark.parametrize("field", [
     "auth_login_ip_limit", "auth_login_email_limit", "auth_login_window_seconds",
     "auth_signup_ip_limit", "auth_signup_window_seconds",
+    "ai_user_daily_limit", "ai_user_minute_limit",
+    "ai_project_daily_limit", "ai_project_minute_limit",
 ])
 def test_auth_rate_limits_cannot_be_disabled_with_zero(field):
     with pytest.raises(ValidationError):

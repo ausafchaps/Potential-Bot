@@ -16,7 +16,11 @@ from app.schemas.quiz import (
     QuizResponse,
     QuizSummaryResponse,
 )
-from app.services.llm.base import LLMProviderConfigurationError, LLMProviderError
+from app.services.llm.base import (
+    LLMProviderConfigurationError,
+    LLMProviderError,
+    LLMProviderRateLimited,
+)
 from app.services.quiz_attempts import (
     QuizAttemptNotFoundError,
     QuizAttemptValidationError,
@@ -138,6 +142,8 @@ def create_course_quiz_endpoint(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=str(exc),
         ) from exc
+    except LLMProviderRateLimited:
+        raise
     except LLMProviderError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
