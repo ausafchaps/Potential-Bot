@@ -42,6 +42,7 @@ Completed modules:
 - PostgreSQL production foundation with readiness checks and CI coverage
 - staging API deployment blueprint and smoke-test workflow
 - password authentication, revocable bearer sessions, course ownership, and admin roles
+- shared database-backed login and signup rate limiting
 
 ## Planned Capabilities
 
@@ -231,9 +232,28 @@ emails, including legacy accounts.
 
 Sessions expire after `AUTH_SESSION_HOURS` (default 24). The frontend stores its
 session in sessionStorage and clears it on logout, expiry, and API changes.
-Email verification, self-service password recovery, MFA, and shared authentication
-rate limiting remain follow-up work. Public deployments require HTTPS and gateway
-request limits for registration and login.
+Login allows 30 attempts per IP and 10 per normalized email in each 15-minute
+window. Signup allows 10 attempts per IP per hour, shared by `/auth/register` and
+`/users`. Both successful and failed attempts count. Limits use atomic database
+counters shared across processes and Vercel instances; throttling returns HTTP 429
+with `Retry-After` and a wait time in the message. Existing sessions and logout
+continue to work while sign-in is throttled. Storage errors fail closed with 503.
+Apply `alembic upgrade head` before running the updated API.
+
+Configure positive `AUTH_LOGIN_IP_LIMIT`, `AUTH_LOGIN_EMAIL_LIMIT`,
+`AUTH_LOGIN_WINDOW_SECONDS`, `AUTH_SIGNUP_IP_LIMIT`, and `AUTH_SIGNUP_WINDOW_SECONDS`
+values as needed. Windows align to Unix time and can admit a burst on either side
+of a boundary. Counters contain SHA-256 bucket keys rather than plaintext emails
+or IPs; each auth request removes up to 100 buckets expired more than a day ago.
+
+The default IP source is the ASGI client address. Vercel automatically selects
+its platform `x-vercel-forwarded-for` header when the system variable `VERCEL=1`
+is present. `AUTH_CLIENT_IP_SOURCE=direct` or `vercel` can override this choice.
+Enable `vercel` only behind Vercel's gateway; arbitrary forwarding headers are
+ignored in direct mode. Other hosts must configure their ASGI server to trust
+only their gateway's proxy addresses. Email verification, self-service password
+recovery, and MFA remain follow-up work. Public deployments require HTTPS and
+gateway request limits as an additional layer before application/body processing.
 
 ## LLM Providers
 
@@ -307,6 +327,7 @@ Decision records live in `docs/decisions`.
 - `0025-postgresql-foundation.md`
 - `0026-staging-api-deployment.md`
 - `0027-authentication.md`
+- `0028-authentication-rate-limiting.md`
 
 ## Branch Workflow
 

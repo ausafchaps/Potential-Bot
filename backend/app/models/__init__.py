@@ -2,6 +2,7 @@
 
 from app.models.answer import Answer, AnswerStatus
 from app.models.answer_feedback import AnswerFeedback
+from app.models.auth_rate_limit import AuthRateLimit
 from app.models.auth_session import AuthSession
 from app.models.citation import Citation
 from app.models.course import Course
@@ -29,6 +30,7 @@ __all__ = [
     "AnswerFeedback",
     "AnswerStatus",
     "AuthSession",
+    "AuthRateLimit",
     "Citation",
     "Course",
     "Document",
