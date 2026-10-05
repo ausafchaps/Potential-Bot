@@ -44,6 +44,7 @@ Completed modules:
 - password authentication, revocable bearer sessions, course ownership, and admin roles
 - shared database-backed login and signup rate limiting
 - shared per-user and project AI generation budgets with a visible allowance
+- course study library for reopening saved answers, quizzes, scores, and flashcard sets
 
 ## Planned Capabilities
 
@@ -187,6 +188,13 @@ document upload, grounded questions with citations, quiz generation and grading,
 weak-topic recommendations, flashcard generation, document summaries, and admin
 metrics for admin accounts. Sign up or sign in, then create or select one of your
 courses. New passwords must contain 12-128 characters.
+
+Open **Library** to browse the selected course's saved answers, quizzes, and
+flashcard sets, newest first. Filter by type or search question/title/topic text.
+Opening an answer restores its text and source citations; opening a quiz lets
+you retake it or review past scores and graded answers. Saved work persists across
+reloads and sign-ins. Switching courses clears the previous course's views.
+Reopening records uses existing authenticated GET APIs and consumes no AI allowance.
 
 Apply the authentication migration before starting the backend:
 
@@ -396,6 +404,13 @@ Run linting:
 
 ```powershell
 ruff check .
+```
+
+Check the frontend with Node.js 24 (no npm dependencies):
+
+```powershell
+node --check frontend/app.js
+node --test frontend/tests/*.test.cjs
 ```
 
 Check Alembic model drift:
