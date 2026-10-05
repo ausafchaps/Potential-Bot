@@ -9,6 +9,7 @@ class LLMRequest:
     question: str
     prompt: str
     context_chunks: list[RankedChunk]
+    json_output: bool = False
 
 
 @dataclass(frozen=True)

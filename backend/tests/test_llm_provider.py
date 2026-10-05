@@ -82,6 +82,9 @@ def test_groq_provider_sends_grounded_prompt_and_parses_answer() -> None:
     assert request.headers["Authorization"] == "Bearer test-key"
     payload = json.loads(request.content)
     assert payload["model"] == "llama-test"
+    assert payload["max_completion_tokens"] == 4096
+    assert "reasoning_effort" not in payload
+    assert "response_format" not in payload
     assert payload["messages"][1]["content"] == "Study material:\n[1] Binary search halves arrays."
 
 
@@ -120,4 +123,50 @@ def test_groq_provider_raises_provider_error_for_missing_answer_text() -> None:
     with pytest.raises(LLMProviderError, match="did not include answer text"):
         provider.generate_answer(
             LLMRequest(question="What is binary search?", prompt="Prompt", context_chunks=[])
+        )
+
+
+@pytest.mark.parametrize("model", ["openai/gpt-oss-20b", "openai/gpt-oss-120b"])
+def test_groq_reasoning_models_return_only_final_content(model: str) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        assert payload["reasoning_effort"] == "low"
+        assert payload["include_reasoning"] is False
+        assert payload["max_completion_tokens"] == 4096
+        assert payload["response_format"] == {"type": "json_object"}
+        return httpx.Response(200, json={"choices": [{
+            "message": {"content": "Final answer. [1]", "reasoning": "Private reasoning"},
+            "finish_reason": "stop",
+        }]})
+
+    provider = GroqLLMProvider(
+        api_key="test-key", model=model, base_url="https://api.groq.com/openai/v1",
+        timeout_seconds=30,
+        http_client=httpx.Client(transport=httpx.MockTransport(handler),
+                                 base_url="https://api.groq.com/openai/v1"),
+    )
+    assert provider.generate_answer(LLMRequest(
+        question="Question", prompt="Prompt", context_chunks=[], json_output=True,
+    )).text == "Final answer. [1]"
+
+
+@pytest.mark.parametrize("content,finish_reason,error", [
+    ("Partial answer", "length", "completion token limit"),
+    (None, "stop", "did not include answer text"),
+    ("   ", "stop", "empty answer text"),
+])
+def test_groq_rejects_incomplete_or_empty_content(content, finish_reason, error) -> None:
+    client = httpx.Client(
+        transport=httpx.MockTransport(lambda _: httpx.Response(200, json={"choices": [{
+            "message": {"content": content}, "finish_reason": finish_reason,
+        }]})),
+        base_url="https://api.groq.com/openai/v1",
+    )
+    provider = GroqLLMProvider(
+        api_key="test-key", model="openai/gpt-oss-20b",
+        base_url="https://api.groq.com/openai/v1", timeout_seconds=30, http_client=client,
+    )
+    with pytest.raises(LLMProviderError, match=error):
+        provider.generate_answer(
+            LLMRequest(question="Question", prompt="Prompt", context_chunks=[])
         )

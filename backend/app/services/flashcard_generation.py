@@ -135,6 +135,7 @@ def generate_flashcards_from_evidence(
             question=f"Generate flashcards about {payload.topic}",
             prompt=prompt,
             context_chunks=evidence_chunks,  # type: ignore[arg-type]
+            json_output=True,
         )
     )
     return parse_generated_flashcards_json(response.text, card_count=payload.card_count)
