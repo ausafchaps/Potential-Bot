@@ -279,6 +279,7 @@ def test_foreign_resources_are_hidden_and_cannot_be_modified(auth_client):
         "quiz_id": quiz["id"],
         "attempt_id": attempt["id"],
         "flashcard_set_id": cards["id"],
+        "flashcard_id": cards["cards"][0]["id"],
     }
     for method, path in private_endpoints():
         if path.startswith("/admin"):

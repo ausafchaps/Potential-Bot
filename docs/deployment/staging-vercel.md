@@ -58,6 +58,10 @@ evidence and fake-provider results do not count. `/auth/ai-usage` returns only t
 signed-in student's usage. Request budgets do not meter tokens, and Groq's own
 limits can be exhausted earlier. Counter failures return 503 before generation.
 
+The Review tab requires migration `20261009_0011`, applied automatically during the
+main build. Existing flashcards become due immediately; reviews save their next
+due times in Neon without using AI allowance. Use separate databases for previews.
+
 Vercel functions accept request bodies up to 4.5 MB, including multipart overhead.
 Use small text files and PDFs for staging. Requests have a 60-second maximum in
 this configuration. Uploaded text, chunks, and authentication sessions persist in

@@ -13,6 +13,7 @@ from app.models import (
     AuthSession,
     Course,
     Document,
+    Flashcard,
     FlashcardSet,
     Question,
     Quiz,
@@ -81,6 +82,7 @@ def require_resource_owner(request: Request, db: Database, user: CurrentUser) ->
         "quiz_id": (Quiz, "Quiz"),
         "attempt_id": (QuizAttempt, "Quiz attempt"),
         "flashcard_set_id": (FlashcardSet, "Flashcard set"),
+        "flashcard_id": (Flashcard, "Flashcard"),
     }
     checked = False
     for parameter, (model, label) in resources.items():
@@ -100,6 +102,8 @@ def require_resource_owner(request: Request, db: Database, user: CurrentUser) ->
                 course_id = resource.question.course_id
             elif isinstance(resource, QuizAttempt):
                 course_id = resource.quiz.course_id
+            elif isinstance(resource, Flashcard):
+                course_id = resource.flashcard_set.course_id
             elif isinstance(resource, Course):
                 course_id = resource.id
             else:
