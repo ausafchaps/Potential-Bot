@@ -12,6 +12,7 @@ from app.models.document_chunk import DocumentChunk
 from app.models.document_chunk_embedding import DocumentChunkEmbedding
 from app.models.flashcard import Flashcard
 from app.models.flashcard_citation import FlashcardCitation
+from app.models.flashcard_progress import FlashcardProgress
 from app.models.flashcard_set import (
     FlashcardDifficulty,
     FlashcardSet,
@@ -42,6 +43,7 @@ __all__ = [
     "Flashcard",
     "FlashcardCitation",
     "FlashcardDifficulty",
+    "FlashcardProgress",
     "FlashcardSet",
     "FlashcardSetStatus",
     "Question",

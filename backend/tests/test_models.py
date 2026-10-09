@@ -54,6 +54,7 @@ def test_core_tables_are_declared() -> None:
         "flashcard_citations",
         "flashcard_sets",
         "flashcards",
+        "flashcard_progress",
         "questions",
         "quiz_citations",
         "quiz_attempt_answers",

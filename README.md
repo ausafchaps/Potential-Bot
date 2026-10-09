@@ -45,6 +45,7 @@ Completed modules:
 - shared database-backed login and signup rate limiting
 - shared per-user and project AI generation budgets with a visible allowance
 - course study library for reopening saved answers, quizzes, scores, and flashcard sets
+- persisted flashcard reviews with answer reveal, ratings, and a due-card queue
 
 ## Planned Capabilities
 
@@ -177,8 +178,8 @@ Groq's `openai/gpt-oss-20b` for real answers, quizzes, and flashcards; grounded
 answers use hybrid retrieval for evidence. Retrieval
 evaluation uses a small bundled dataset to measure the keyword, vector, and
 hybrid paths with hit rate, mean reciprocal rank, and precision at k.
-Spaced repetition, flashcard review tracking, and question-level concept tagging
-are planned but not implemented yet.
+Flashcard reviews use a simple deterministic spaced-repetition schedule.
+Question-level concept tagging and more advanced adaptive scheduling remain planned.
 
 ## Frontend Demo
 
@@ -195,6 +196,25 @@ Opening an answer restores its text and source citations; opening a quiz lets
 you retake it or review past scores and graded answers. Saved work persists across
 reloads and sign-ins. Switching courses clears the previous course's views.
 Reopening records uses existing authenticated GET APIs and consumes no AI allowance.
+
+Open **Review** to study cards due now in the selected course. New cards are due
+immediately. Reveal the answer and citations, then choose Again, Hard, Good, or
+Easy. Again schedules 10 minutes; the other ratings start at 1, 3, and 7 days and
+extend existing intervals by 1.2, 2, and 3 times (capped at 365 days). Scheduling
+uses elapsed time in UTC; the UI displays local due times. Reviewed cards return
+when due, and progress survives reloads and sign-ins. Reviews use no AI allowance.
+Apply migration `20261009_0011` before serving this version; Vercel applies it during
+the main deployment build. This is a simple heuristic, not FSRS or SM-2.
+
+Review APIs:
+
+- `GET /courses/{course_id}/flashcard-review?limit=20` (1–50 cards, counts and next due time)
+- `POST /flashcards/{flashcard_id}/reviews` (`rating` and the queue card's `version`)
+
+Only the course owner can read or rate its cards. The version prevents concurrent
+or repeated submissions from scheduling a card twice. HTTP 409 refreshes the queue;
+storage failures return 503 and leave the UI ready to retry. Progress keeps the
+latest rating and total review count, rather than a full review-event history.
 
 Apply the authentication migration before starting the backend:
 
