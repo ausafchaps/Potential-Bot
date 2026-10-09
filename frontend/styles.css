@@ -354,6 +354,32 @@ h3 {
   padding-top: 10px;
 }
 
+.library-filters {
+  display: grid;
+  grid-template-columns: minmax(140px, 220px) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.library-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.library-row h3,
+.result-surface p {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+#libraryTab .toolbar p,
+#quizHistoryStatus {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
 .toast {
   position: fixed;
   right: 18px;
@@ -391,6 +417,8 @@ h3 {
 
   .api-control,
   .action-row,
+  .library-filters,
+  .library-row,
   #askForm {
     grid-template-columns: 1fr;
   }

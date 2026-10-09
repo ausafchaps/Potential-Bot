@@ -100,6 +100,7 @@
             <button class="tab-button" type="button" data-tab="quiz">Quiz</button>
             <button class="tab-button" type="button" data-tab="plan">Plan</button>
             <button class="tab-button" type="button" data-tab="flashcards">Flashcards</button>
+            <button class="tab-button" type="button" data-tab="library">Library</button>
           </nav>
 
           <section id="askTab" class="tab-pane active">
@@ -113,6 +114,10 @@
               />
               <button type="submit">Ask</button>
             </form>
+            <div id="savedAnswerControls" class="stack" hidden>
+              <h2>Saved answer</h2>
+              <label>Answer version <select id="savedAnswerSelect"></select></label>
+            </div>
             <div id="answerPanel" class="result-surface"></div>
             <div id="citationList" class="evidence-list"></div>
           </section>
@@ -129,6 +134,11 @@
             </form>
             <form id="attemptForm" class="quiz-surface"></form>
             <div id="attemptPanel" class="result-surface"></div>
+            <section id="quizHistorySection" class="stack" hidden>
+              <h2>Saved scores</h2>
+              <p id="quizHistoryStatus" role="status"></p>
+              <div id="quizHistoryList" class="compact-list"></div>
+            </section>
           </section>
 
           <section id="planTab" class="tab-pane">
@@ -150,6 +160,30 @@
               <button type="submit">Generate</button>
             </form>
             <div id="flashcardList" class="flashcard-list"></div>
+          </section>
+          <section id="libraryTab" class="tab-pane">
+            <div class="toolbar">
+              <div><h2>Study library</h2><p>Saved work for the course selected in your workspace.</p></div>
+              <button id="refreshLibraryButton" type="button">Refresh library</button>
+            </div>
+            <div class="library-filters">
+              <label>Type
+                <select id="libraryType">
+                  <option value="all">All saved work</option>
+                  <option value="answer">Answers</option>
+                  <option value="quiz">Quizzes</option>
+                  <option value="flashcards">Flashcard sets</option>
+                </select>
+              </label>
+              <label>Search saved work <input id="librarySearch" type="search" placeholder="Question, title, or topic" /></label>
+            </div>
+            <p id="libraryStatus" role="status" aria-live="polite">Sign in and select a course to see saved work.</p>
+            <div id="libraryList" class="compact-list"></div>
+            <div id="libraryPagination" class="toolbar" hidden>
+              <button id="libraryPrevious" class="secondary" type="button">Previous</button>
+              <span id="libraryPageStatus"></span>
+              <button id="libraryNext" class="secondary" type="button">Next</button>
+            </div>
           </section>
         </section>
       </main>

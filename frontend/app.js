@@ -10,6 +10,12 @@ const state = {
   user: null,
   quiz: null,
   selectedOptions: new Map(),
+  workspaceVersion: 0,
+  libraryLoadVersion: 0,
+  libraryOpenVersion: 0,
+  libraryItems: [],
+  libraryPage: 0,
+  savedQuestion: null,
 };
 
 const els = {
@@ -53,6 +59,21 @@ const els = {
   flashcardDifficulty: document.querySelector("#flashcardDifficulty"),
   flashcardList: document.querySelector("#flashcardList"),
   toast: document.querySelector("#toast"),
+  savedAnswerControls: document.querySelector("#savedAnswerControls"),
+  savedAnswerSelect: document.querySelector("#savedAnswerSelect"),
+  quizHistorySection: document.querySelector("#quizHistorySection"),
+  quizHistoryStatus: document.querySelector("#quizHistoryStatus"),
+  quizHistoryList: document.querySelector("#quizHistoryList"),
+  libraryTab: document.querySelector("#libraryTab"),
+  refreshLibraryButton: document.querySelector("#refreshLibraryButton"),
+  libraryType: document.querySelector("#libraryType"),
+  librarySearch: document.querySelector("#librarySearch"),
+  libraryStatus: document.querySelector("#libraryStatus"),
+  libraryList: document.querySelector("#libraryList"),
+  libraryPagination: document.querySelector("#libraryPagination"),
+  libraryPageStatus: document.querySelector("#libraryPageStatus"),
+  libraryPrevious: document.querySelector("#libraryPrevious"),
+  libraryNext: document.querySelector("#libraryNext"),
 };
 
 const sampleNotes = `Binary search quickly finds values in a sorted array by repeatedly halving the search space.
@@ -70,10 +91,32 @@ function saveState() {
 
 
 function clearStudyViews() {
+  state.workspaceVersion += 1;
+  state.libraryLoadVersion += 1;
+  state.libraryOpenVersion += 1;
+  state.libraryItems = [];
+  state.libraryPage = 0;
+  state.savedQuestion = null;
+  els.questionInput.value = "What is binary search?";
+  els.quizTopic.value = "binary search";
+  els.flashcardTopic.value = "binary search";
+  els.quizDifficulty.value = "medium";
+  els.flashcardDifficulty.value = "medium";
+  els.libraryType.value = "all";
+  els.librarySearch.value = "";
+  setBusy(els.refreshLibraryButton, false);
+  setBusy(els.savedAnswerSelect, false);
+  els.savedAnswerControls.hidden = true;
+  els.savedAnswerSelect.innerHTML = "";
+  els.quizHistorySection.hidden = true;
+  els.quizHistoryStatus.textContent = "";
+  els.libraryStatus.textContent = "Sign in and select a course to see saved work.";
+  els.libraryPagination.hidden = true;
   state.quiz = null;
   state.selectedOptions.clear();
   for (const key of ["documentList", "answerPanel", "citationList", "attemptForm",
-    "attemptPanel", "weakTopicList", "recommendationList", "flashcardList", "metricsGrid"]) {
+    "attemptPanel", "weakTopicList", "recommendationList", "flashcardList", "metricsGrid",
+    "libraryList", "quizHistoryList"]) {
     els[key].innerHTML = "";
   }
 }
@@ -140,6 +183,7 @@ async function submitAuth(event) {
     await refreshAiUsage();
     await refreshCourses();
     if (state.courseId) await refreshDocuments();
+    refreshVisibleLibrary();
     await refreshMetrics();
     showToast(mode === "register" ? "Account created" : "Signed in");
   } catch (error) {
@@ -174,6 +218,7 @@ async function restoreAccount() {
     await refreshAiUsage();
     await refreshCourses();
     if (state.courseId) await refreshDocuments();
+    refreshVisibleLibrary();
     await refreshMetrics();
   } catch (error) {
     clearAccount();
@@ -201,6 +246,7 @@ async function request(path, options = {}) {
   const requestApiBase = state.apiBase;
   const requestToken = state.token;
   const requestCourse = state.courseId;
+  const requestWorkspace = state.workspaceVersion;
   const response = await fetch(`${requestApiBase}${path}`, {
     ...options,
     headers: {
@@ -214,13 +260,13 @@ async function request(path, options = {}) {
   const text = await response.text();
   const payload = text ? JSON.parse(text) : null;
   if (state.apiBase !== requestApiBase || state.token !== requestToken
-      || state.courseId !== requestCourse) {
+      || state.courseId !== requestCourse || state.workspaceVersion !== requestWorkspace) {
     throw new Error("Workspace changed; please try again");
   }
   if (options.method === "POST" && /\/courses\/[^/]+\/(questions|quizzes|flashcard-sets)$/.test(path)) {
     await refreshAiUsage();
     if (state.apiBase !== requestApiBase || state.token !== requestToken
-        || state.courseId !== requestCourse) {
+        || state.courseId !== requestCourse || state.workspaceVersion !== requestWorkspace) {
       throw new Error("Workspace changed; please try again");
     }
   }
@@ -312,6 +358,7 @@ async function createWorkspace(event) {
     state.courseId = course.id;
     saveState();
     await refreshCourses();
+    refreshVisibleLibrary();
     showToast("Course created");
     await refreshDocuments();
     await refreshMetrics();
@@ -352,6 +399,7 @@ async function seedDemo() {
     });
 
     await refreshCourses();
+    refreshVisibleLibrary();
     showToast("Demo workspace ready");
     await refreshDocuments();
     await refreshMetrics();
@@ -445,6 +493,7 @@ async function refreshMetrics() {
 
 async function askQuestion(event) {
   event.preventDefault();
+  const version = ++state.libraryOpenVersion;
   setBusy(event.submitter, true);
   try {
     const courseId = requireCourseId();
@@ -456,29 +505,10 @@ async function askQuestion(event) {
       }),
     });
 
-    els.answerPanel.innerHTML = `
-      <h3>${escapeHtml(answer.status)}</h3>
-      <p>${escapeHtml(answer.answer || "No grounded answer was generated.")}</p>
-      <div class="meta-row">
-        <span class="pill">${escapeHtml(answer.provider)}</span>
-        <span class="pill">${answer.citations.length} citations</span>
-        <span class="pill">${answer.retrieved_chunks.length} chunks</span>
-      </div>
-    `;
-    els.citationList.innerHTML = answer.citations
-      .map(
-        (citation) => `
-          <article class="list-row">
-            <h3>${escapeHtml(citation.document_filename)}</h3>
-            <p>${escapeHtml(citation.text)}</p>
-            <div class="meta-row">
-              <span class="pill">chunk ${citation.chunk_index}</span>
-              <span class="pill">citation ${citation.position}</span>
-            </div>
-          </article>
-        `,
-      )
-      .join("");
+    if (version !== state.libraryOpenVersion) return;
+    state.savedQuestion = null;
+    els.savedAnswerControls.hidden = true;
+    renderAnswer(answer);
     showToast("Answer ready");
     await refreshMetrics();
   } catch (error) {
@@ -488,8 +518,35 @@ async function askQuestion(event) {
   }
 }
 
+function renderAnswer(answer) {
+  els.answerPanel.innerHTML = `
+    <h3>${escapeHtml(answer.status)}</h3>
+    <p>${escapeHtml(answer.answer || "No grounded answer was generated.")}</p>
+    <div class="meta-row">
+      <span class="pill">${escapeHtml(answer.provider)}</span>
+      <span class="pill">${answer.citations.length} citations</span>
+      ${answer.retrieved_chunks ? `<span class="pill">${answer.retrieved_chunks.length} chunks</span>` : ""}
+    </div>
+  `;
+  els.citationList.innerHTML = answer.citations
+    .map(
+      (citation) => `
+        <article class="list-row">
+          <h3>${escapeHtml(citation.document_filename)}</h3>
+          <p>${escapeHtml(citation.text)}</p>
+          <div class="meta-row">
+            <span class="pill">chunk ${citation.chunk_index}</span>
+            <span class="pill">citation ${citation.position}</span>
+          </div>
+        </article>
+      `,
+    )
+    .join("");
+}
+
 async function generateQuiz(event) {
   event.preventDefault();
+  const version = ++state.libraryOpenVersion;
   setBusy(event.submitter, true);
   try {
     const courseId = requireCourseId();
@@ -502,10 +559,14 @@ async function generateQuiz(event) {
         limit: 5,
       }),
     });
+    if (version !== state.libraryOpenVersion) return;
     state.quiz = quiz;
     state.selectedOptions = new Map();
     renderQuiz(quiz);
     els.attemptPanel.innerHTML = "";
+    els.quizHistorySection.hidden = false;
+    els.quizHistoryStatus.textContent = "No attempts yet. Submit the quiz to save a score.";
+    els.quizHistoryList.innerHTML = "";
     showToast("Quiz generated");
   } catch (error) {
     showToast(error.message, "bad");
@@ -559,6 +620,8 @@ function renderQuiz(quiz) {
 async function submitAttempt(event) {
   event.preventDefault();
   if (!state.quiz?.id) return;
+  const quizId = state.quiz.id;
+  const version = ++state.libraryOpenVersion;
   const button = event.submitter;
   setBusy(button, true);
   try {
@@ -574,32 +637,14 @@ async function submitAttempt(event) {
         selected_option_id: selected.value,
       };
     });
-    const attempt = await request(`/quizzes/${state.quiz.id}/attempts`, {
+    const attempt = await request(`/quizzes/${quizId}/attempts`, {
       method: "POST",
       body: JSON.stringify({ answers }),
     });
 
-    els.attemptPanel.innerHTML = `
-      <h3>${attempt.correct_count}/${attempt.question_count} correct</h3>
-      <p>Score: ${Math.round(attempt.score_percent)}%</p>
-      <div class="compact-list">
-        ${attempt.answers
-          .map(
-            (answer) => `
-              <div class="list-row">
-                <h3>${escapeHtml(answer.question)}</h3>
-                <div class="meta-row">
-                  <span class="pill ${answer.is_correct ? "good" : "bad"}">
-                    ${answer.is_correct ? "correct" : "missed"}
-                  </span>
-                  <span class="pill">${escapeHtml(answer.correct_option)}</span>
-                </div>
-              </div>
-            `,
-          )
-          .join("")}
-      </div>
-    `;
+    if (version !== state.libraryOpenVersion || state.quiz?.id !== quizId) return;
+    renderAttempt(attempt);
+    await refreshQuizHistory(quizId);
     showToast("Attempt graded");
     await refreshPlan();
     await refreshMetrics();
@@ -608,6 +653,32 @@ async function submitAttempt(event) {
   } finally {
     setBusy(button, false);
   }
+}
+
+function renderAttempt(attempt) {
+  els.attemptPanel.innerHTML = `
+    <h3>${attempt.correct_count}/${attempt.question_count} correct</h3>
+    <p>Score: ${Math.round(attempt.score_percent)}%</p>
+    ${attempt.created_at ? `<p>Submitted ${escapeHtml(formatSavedDate(attempt.created_at))}</p>` : ""}
+    <div class="compact-list">
+      ${attempt.answers
+        .map(
+          (answer) => `
+            <div class="list-row">
+              <h3>${escapeHtml(answer.question)}</h3>
+              <p>Your answer: ${escapeHtml(answer.selected_option || "Not available")}</p>
+              <div class="meta-row">
+                <span class="pill ${answer.is_correct ? "good" : "bad"}">
+                  ${answer.is_correct ? "correct" : "missed"}
+                </span>
+                <span class="pill">${escapeHtml(answer.correct_option)}</span>
+              </div>
+            </div>
+          `,
+        )
+        .join("")}
+    </div>
+  `;
 }
 
 async function refreshPlan() {
@@ -659,6 +730,7 @@ async function refreshPlan() {
 
 async function generateFlashcards(event) {
   event.preventDefault();
+  const version = ++state.libraryOpenVersion;
   setBusy(event.submitter, true);
   try {
     const courseId = requireCourseId();
@@ -672,28 +744,8 @@ async function generateFlashcards(event) {
       }),
     });
 
-    els.flashcardList.innerHTML = set.cards
-      .map(
-        (card) => `
-          <article class="flashcard-item">
-            <h3>${escapeHtml(card.front)}</h3>
-            <p class="back">${escapeHtml(card.back)}</p>
-            <div class="meta-row">
-              <span class="pill">${card.citations.length} citations</span>
-              <span class="pill">card ${card.position}</span>
-            </div>
-          </article>
-        `,
-      )
-      .join("");
-    if (!set.cards.length) {
-      els.flashcardList.innerHTML = `
-        <div class="result-surface">
-          <h3>${escapeHtml(set.status)}</h3>
-          <p>No flashcards were generated.</p>
-        </div>
-      `;
-    }
+    if (version !== state.libraryOpenVersion) return;
+    renderFlashcards(set);
     showToast("Flashcards ready");
   } catch (error) {
     showToast(error.message, "bad");
@@ -702,15 +754,248 @@ async function generateFlashcards(event) {
   }
 }
 
+function renderFlashcards(set) {
+  els.flashcardList.innerHTML = set.cards
+    .map(
+      (card) => `
+        <article class="flashcard-item">
+          <h3>${escapeHtml(card.front)}</h3>
+          <p class="back">${escapeHtml(card.back)}</p>
+          <div class="meta-row">
+            <span class="pill">${card.citations.length} citations</span>
+            <span class="pill">card ${card.position}</span>
+          </div>
+        </article>
+      `,
+    )
+    .join("");
+  if (!set.cards.length) {
+    els.flashcardList.innerHTML = `
+      <div class="result-surface">
+        <h3>${escapeHtml(set.status)}</h3>
+        <p>No flashcards were generated.</p>
+      </div>
+    `;
+  }
+}
+
+function formatSavedDate(value) {
+  // API timestamps from SQLite can omit the timezone; stored timestamps are UTC.
+  const utcValue = /(?:Z|[+-]\d\d:\d\d)$/.test(value) ? value : `${value}Z`;
+  return new Date(utcValue).toLocaleString();
+}
+
+function refreshVisibleLibrary() {
+  if (els.libraryTab.classList.contains("active")) refreshLibrary();
+}
+
+async function refreshLibrary() {
+  const version = ++state.libraryLoadVersion;
+  const workspace = state.workspaceVersion;
+  state.libraryItems = [];
+  state.libraryPage = 0;
+  els.libraryList.innerHTML = "";
+  els.libraryPagination.hidden = true;
+  if (!state.user || !state.courseId) {
+    els.libraryStatus.textContent = "Sign in and select a course to see saved work.";
+    return;
+  }
+  setBusy(els.refreshLibraryButton, true);
+  els.libraryStatus.textContent = "Loading saved work…";
+  try {
+    const courseId = requireCourseId();
+    const [questions, quizzes, flashcards] = await Promise.all([
+      request(`/courses/${courseId}/questions`),
+      request(`/courses/${courseId}/quizzes`),
+      request(`/courses/${courseId}/flashcard-sets`),
+    ]);
+    if (version !== state.libraryLoadVersion || workspace !== state.workspaceVersion) return;
+    state.libraryItems = [
+      ...questions.map((item) => ({ ...item, kind: "answer", label: "Answer",
+        title: item.text, description: `${item.answer_count} saved answer${item.answer_count === 1 ? "" : "s"}` })),
+      ...quizzes.map((item) => ({ ...item, kind: "quiz", label: "Quiz",
+        title: item.title || item.topic,
+        description: `${item.question_count} questions · ${item.difficulty} · ${item.status}` })),
+      ...flashcards.map((item) => ({ ...item, kind: "flashcards", label: "Flashcards",
+        title: item.title || item.topic,
+        description: `${item.card_count} cards · ${item.difficulty} · ${item.status}` })),
+    ].sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id));
+    renderLibrary();
+  } catch (error) {
+    if (version !== state.libraryLoadVersion || workspace !== state.workspaceVersion) return;
+    els.libraryStatus.textContent = `Saved work could not be loaded: ${error.message}. Use Refresh library to retry.`;
+  } finally {
+    if (version === state.libraryLoadVersion) setBusy(els.refreshLibraryButton, false);
+  }
+}
+
+function renderLibrary() {
+  if (!state.user || !state.courseId) {
+    els.libraryStatus.textContent = "Sign in and select a course to see saved work.";
+    els.libraryList.innerHTML = "";
+    els.libraryPagination.hidden = true;
+    return;
+  }
+  const search = els.librarySearch.value.trim().toLocaleLowerCase();
+  const items = state.libraryItems.filter((item) =>
+    (els.libraryType.value === "all" || item.kind === els.libraryType.value)
+    && `${item.title} ${item.topic || ""}`.toLocaleLowerCase().includes(search));
+  const pageSize = 20;
+  const pages = Math.ceil(items.length / pageSize);
+  state.libraryPage = Math.max(0, Math.min(state.libraryPage, pages - 1));
+  els.libraryStatus.textContent = items.length
+    ? `${items.length} saved item${items.length === 1 ? "" : "s"} · newest first. Reopening saved work uses no AI allowance.`
+    : state.libraryItems.length ? "No saved work matches these filters."
+      : "No saved work yet. Ask a question or generate a quiz or flashcards for this course.";
+  els.libraryList.innerHTML = items.slice(state.libraryPage * pageSize,
+    (state.libraryPage + 1) * pageSize).map((item) => `
+      <article class="list-row library-row">
+        <div>
+          <h3>${escapeHtml(item.title)}</h3>
+          <div class="meta-row">
+            <span class="pill">${escapeHtml(item.label)}</span>
+            <span class="pill">${escapeHtml(item.description)}</span>
+            <span class="pill">${escapeHtml(formatSavedDate(item.created_at))}</span>
+          </div>
+        </div>
+        <button type="button" data-library-kind="${item.kind}" data-library-id="${escapeHtml(item.id)}"
+          aria-label="Open ${escapeHtml(item.label.toLowerCase())}: ${escapeHtml(item.title)}">Open</button>
+      </article>`).join("");
+  els.libraryPagination.hidden = pages <= 1;
+  els.libraryPageStatus.textContent = `Page ${state.libraryPage + 1} of ${pages}`;
+  els.libraryPrevious.disabled = state.libraryPage === 0;
+  els.libraryNext.disabled = state.libraryPage >= pages - 1;
+}
+
+async function openLibraryItem(kind, id, button) {
+  const version = ++state.libraryOpenVersion;
+  const workspace = state.workspaceVersion;
+  const current = () => version === state.libraryOpenVersion && workspace === state.workspaceVersion;
+  setBusy(button, true);
+  try {
+    requireCourseId();
+    if (kind === "answer") {
+      const question = await request(`/questions/${id}`);
+      if (!current()) return;
+      state.savedQuestion = question;
+      els.questionInput.value = question.text;
+      els.savedAnswerSelect.innerHTML = [...question.answers].sort((a, b) =>
+        b.created_at.localeCompare(a.created_at)).map((answer) =>
+        `<option value="${escapeHtml(answer.id)}">${escapeHtml(formatSavedDate(answer.created_at))} · ${escapeHtml(answer.status)}</option>`).join("");
+      els.savedAnswerControls.hidden = !question.answers.length;
+      els.answerPanel.innerHTML = "";
+      els.citationList.innerHTML = "";
+      if (question.answers.length) {
+        const answer = await request(`/answers/${els.savedAnswerSelect.value}`);
+        if (!current()) return;
+        renderAnswer(answer);
+      } else {
+        els.answerPanel.textContent = "No saved answer is available for this question.";
+      }
+      activateTab("ask");
+    } else if (kind === "quiz") {
+      const quiz = await request(`/quizzes/${id}`);
+      if (!current()) return;
+      state.quiz = quiz;
+      state.selectedOptions.clear();
+      els.quizTopic.value = quiz.topic;
+      els.quizDifficulty.value = quiz.difficulty;
+      renderQuiz(quiz);
+      els.attemptPanel.innerHTML = "";
+      activateTab("quiz");
+      await refreshQuizHistory(quiz.id);
+    } else if (kind === "flashcards") {
+      const set = await request(`/flashcard-sets/${id}`);
+      if (!current()) return;
+      els.flashcardTopic.value = set.topic;
+      els.flashcardDifficulty.value = set.difficulty;
+      renderFlashcards(set);
+      activateTab("flashcards");
+    }
+  } catch (error) {
+    if (current()) showToast(`Could not open saved work: ${error.message}`, "bad");
+  } finally {
+    setBusy(button, false);
+  }
+}
+
+async function openSavedAnswer() {
+  const version = ++state.libraryOpenVersion;
+  const workspace = state.workspaceVersion;
+  const id = els.savedAnswerSelect.value;
+  els.answerPanel.innerHTML = "";
+  els.citationList.innerHTML = "";
+  setBusy(els.savedAnswerSelect, true);
+  try {
+    const answer = await request(`/answers/${id}`);
+    if (version !== state.libraryOpenVersion || workspace !== state.workspaceVersion) return;
+    renderAnswer(answer);
+  } catch (error) {
+    if (version === state.libraryOpenVersion && workspace === state.workspaceVersion) {
+      els.answerPanel.textContent = `Saved answer could not be loaded: ${error.message}. Reopen it from the Library to retry.`;
+    }
+  } finally {
+    if (version === state.libraryOpenVersion) setBusy(els.savedAnswerSelect, false);
+  }
+}
+
+async function refreshQuizHistory(quizId) {
+  const workspace = state.workspaceVersion;
+  const current = () => state.quiz?.id === quizId && workspace === state.workspaceVersion;
+  els.quizHistorySection.hidden = false;
+  els.quizHistoryStatus.textContent = "Loading saved scores…";
+  els.quizHistoryList.innerHTML = "";
+  try {
+    const attempts = await request(`/quizzes/${quizId}/attempts`);
+    if (!current()) return;
+    els.quizHistoryStatus.textContent = attempts.length ? "Select a score to review its answers. You can also submit a new attempt above."
+      : "No attempts yet. Submit the quiz to save a score.";
+    els.quizHistoryList.innerHTML = attempts.map((attempt) => `
+      <article class="list-row library-row">
+        <div><h3>${Math.round(attempt.score_percent)}% · ${attempt.correct_count}/${attempt.question_count} correct</h3>
+          <p>${escapeHtml(formatSavedDate(attempt.created_at))}</p></div>
+        <button type="button" data-attempt-id="${escapeHtml(attempt.id)}">Review score</button>
+      </article>`).join("");
+  } catch (error) {
+    if (current()) els.quizHistoryStatus.textContent = `Saved scores could not be loaded: ${error.message}. Reopen this quiz from the Library to retry.`;
+  }
+}
+
+async function openSavedAttempt(id, button) {
+  const version = ++state.libraryOpenVersion;
+  const workspace = state.workspaceVersion;
+  const quizId = state.quiz?.id;
+  setBusy(button, true);
+  try {
+    const attempt = await request(`/quiz-attempts/${id}`);
+    if (version !== state.libraryOpenVersion || workspace !== state.workspaceVersion
+        || state.quiz?.id !== quizId) return;
+    renderAttempt(attempt);
+    els.attemptPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  } catch (error) {
+    if (version === state.libraryOpenVersion && workspace === state.workspaceVersion) {
+      showToast(`Could not load score: ${error.message}`, "bad");
+    }
+  } finally {
+    setBusy(button, false);
+  }
+}
+
+function activateTab(name) {
+  document.querySelectorAll(".tab-button").forEach((tab) => {
+    tab.classList.toggle("active", tab.dataset.tab === name);
+    tab.setAttribute("aria-pressed", String(tab.dataset.tab === name));
+  });
+  document.querySelectorAll(".tab-pane").forEach((pane) => {
+    pane.classList.toggle("active", pane.id === `${name}Tab`);
+  });
+}
+
 function setupTabs() {
   document.querySelectorAll(".tab-button").forEach((button) => {
     button.addEventListener("click", () => {
-      document.querySelectorAll(".tab-button").forEach((tab) => {
-        tab.classList.toggle("active", tab === button);
-      });
-      document.querySelectorAll(".tab-pane").forEach((pane) => {
-        pane.classList.toggle("active", pane.id === `${button.dataset.tab}Tab`);
-      });
+      activateTab(button.dataset.tab);
+      if (button.dataset.tab === "library") refreshLibrary();
     });
   });
 }
@@ -757,6 +1042,7 @@ function bindEvents() {
     clearStudyViews();
     saveState();
     if (state.courseId) await refreshDocuments();
+    refreshVisibleLibrary();
   });
   els.workspaceForm.addEventListener("submit", createWorkspace);
   els.seedDemoButton.addEventListener("click", seedDemo);
@@ -768,6 +1054,21 @@ function bindEvents() {
   els.attemptForm.addEventListener("submit", submitAttempt);
   els.refreshPlanButton.addEventListener("click", refreshPlan);
   els.flashcardForm.addEventListener("submit", generateFlashcards);
+  els.refreshLibraryButton.addEventListener("click", refreshLibrary);
+  for (const [element, event] of [[els.libraryType, "change"], [els.librarySearch, "input"]]) {
+    element.addEventListener(event, () => { state.libraryPage = 0; renderLibrary(); });
+  }
+  els.libraryPrevious.addEventListener("click", () => { state.libraryPage -= 1; renderLibrary(); });
+  els.libraryNext.addEventListener("click", () => { state.libraryPage += 1; renderLibrary(); });
+  els.libraryList.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-library-id]");
+    if (button) openLibraryItem(button.dataset.libraryKind, button.dataset.libraryId, button);
+  });
+  els.savedAnswerSelect.addEventListener("change", openSavedAnswer);
+  els.quizHistoryList.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-attempt-id]");
+    if (button) openSavedAttempt(button.dataset.attemptId, button);
+  });
 }
 
 setupTabs();
