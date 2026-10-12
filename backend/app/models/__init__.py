@@ -26,6 +26,7 @@ from app.models.quiz_attempt_answer import QuizAttemptAnswer
 from app.models.quiz_citation import QuizCitation
 from app.models.quiz_question import QuizQuestion
 from app.models.quiz_question_option import QuizQuestionOption
+from app.models.storage_lock import StorageLock
 from app.models.user import User
 
 __all__ = [
@@ -58,4 +59,5 @@ __all__ = [
     "QuizQuestionOption",
     "QuizStatus",
     "User",
+    "StorageLock",
 ]

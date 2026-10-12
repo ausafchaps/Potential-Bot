@@ -47,6 +47,7 @@ Completed modules:
 - course study library for reopening saved answers, quizzes, scores, and flashcard sets
 - persisted flashcard reviews with answer reveal, ratings, and a due-card queue
 - email verification and password reset with expiring single-use links
+- bounded uploads and shared note-storage allowances with document deletion
 
 ## Planned Capabilities
 
@@ -96,6 +97,7 @@ Documents:
 - `GET /documents/{document_id}`
 - `GET /documents/{document_id}/chunks`
 - `DELETE /documents/{document_id}`
+- `GET /auth/storage-usage` (only the signed-in student's note allowance and file limits)
 
 Retrieval:
 
@@ -359,6 +361,38 @@ other apps sharing the Groq organization. Provider limits can be reached sooner.
 Fixed windows allow bursts around their boundaries. Expired buckets are cleaned
 up in bounded batches, and contain no prompts, documents, or plaintext user IDs.
 Apply `alembic upgrade head` (including `20261005_0010`) before serving this version.
+
+## Upload and Note Storage Limits
+
+Uploads accept files up to 2 MiB, PDFs up to 100 pages, and documents up to 200,000
+extracted characters. The API bounds multipart request bodies before parsing,
+then reads at most the file limit plus one byte. PDF page counts are checked
+before extraction and cumulative extracted characters before reading later pages.
+
+Each student has 20 document slots and 2 MiB of stored UTF-8 note text across all
+courses. The project shares 500 slots and 50 MiB of note text. Stored bytes include
+chunk overlap; they exclude original files (not retained), embeddings, saved AI
+outputs, and database/index overhead. These allowances do not cap the entire
+database or guarantee staying within a hosting provider's plan.
+
+The Documents panel displays remaining space, file limits, and a confirmed Delete
+action. Deleting a document removes its chunks/embeddings and frees its allowance;
+saved answers/quizzes/flashcards retain their citation snapshots. Failed documents
+take a slot and can be deleted. Oversized or quota-rejected documents are rolled
+back without consuming a slot or text allowance. Existing notes are counted by
+migration `20261012_0013`, with no deletion even if they exceed the new limits.
+
+Authorized upload attempts share hourly fixed-window limits: 10/student, 30/IP,
+and 100/project, across text/PDF routes and courses. Invalid uploads that reach
+the handler count; multipart bodies rejected before authentication do not.
+Throttling returns 429 with `Retry-After`; quota exhaustion returns 409; file,
+page, or extraction limits return 413. Database failures block uploads with 503.
+Deletion and allowance reads remain available while uploads are throttled.
+
+Concurrent admission and deletion use one short database transaction lock and
+current stored totals, preserving limits across instances without separate
+counters that can drift. Settings are listed in `.env.example`. See
+[the storage decision](docs/decisions/0033-upload-storage-limits.md).
 
 ## Embedding Providers
 

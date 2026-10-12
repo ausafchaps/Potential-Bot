@@ -14,6 +14,7 @@ class DocumentSummaryResponse(BaseModel):
     status: DocumentStatus
     page_count: int | None
     chunk_count: int
+    storage_bytes: int
     created_at: datetime
     updated_at: datetime
 

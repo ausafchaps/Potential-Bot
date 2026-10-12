@@ -23,6 +23,9 @@ const state = {
   emailEnabled: false,
   verificationRequired: false,
   accountLink: null,
+  storageUsage: null,
+  storageLoadVersion: 0,
+  uploadBusy: false,
 };
 
 const els = {
@@ -47,6 +50,9 @@ const els = {
   documentFile: document.querySelector("#documentFile"),
   refreshDocumentsButton: document.querySelector("#refreshDocumentsButton"),
   documentList: document.querySelector("#documentList"),
+  storageSection: document.querySelector("#storageSection"),
+  storageStatus: document.querySelector("#storageStatus"),
+  uploadLimits: document.querySelector("#uploadLimits"),
   refreshMetricsButton: document.querySelector("#refreshMetricsButton"),
   metricsGrid: document.querySelector("#metricsGrid"),
   askForm: document.querySelector("#askForm"),
@@ -172,6 +178,7 @@ function renderAccount() {
   els.logoutButton.hidden = !state.user;
   els.metricsSection.hidden = !state.user?.is_admin;
   els.aiUsageSection.hidden = !state.user;
+  els.storageSection.hidden = !state.user;
   els.forgotPasswordButton.hidden = Boolean(state.user);
   els.verificationSection.hidden = !state.user || !state.emailEnabled;
   els.verificationStatus.textContent = state.user?.email_verified
@@ -195,6 +202,10 @@ function clearAccount() {
   els.password.value = "";
   els.aiUsageStatus.textContent = "";
   els.aiUsageReset.textContent = "";
+  state.storageLoadVersion += 1;
+  state.storageUsage = null;
+  els.storageStatus.textContent = "";
+  els.uploadLimits.textContent = "";
   clearStudyViews();
   saveState();
   renderAccount();
@@ -235,6 +246,7 @@ async function submitAuth(event) {
     renderAccount();
     await loadAuthCapabilities();
     await refreshAiUsage();
+    await refreshStorage();
     if (state.verificationRequired && !state.user.email_verified) {
       showToast("Verify your email to open your study workspace.");
       return;
@@ -275,6 +287,7 @@ async function restoreAccount() {
     renderAccount();
     await loadAuthCapabilities();
     await refreshAiUsage();
+    await refreshStorage();
     if (state.verificationRequired && !state.user.email_verified) return;
     await refreshCourses();
     if (state.courseId) await refreshDocuments();
@@ -360,6 +373,35 @@ async function refreshAiUsage() {
     if (state.token !== token || state.apiBase !== apiBase || !state.user) return;
     els.aiUsageStatus.textContent = "AI allowance could not be loaded. Refresh to try again.";
     els.aiUsageReset.textContent = "";
+  }
+}
+
+function formatStorage(bytes) {
+  if (bytes < 1024) return `${bytes} bytes`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+async function refreshStorage() {
+  if (!state.user) return;
+  const version = ++state.storageLoadVersion;
+  const token = state.token;
+  const apiBase = state.apiBase;
+  try {
+    const usage = await request("/auth/storage-usage");
+    if (version !== state.storageLoadVersion || !state.user) return;
+    state.storageUsage = usage;
+    els.storageStatus.textContent = `${usage.documents.used} of ${usage.documents.limit} document slots used; `
+      + `${formatStorage(usage.text_bytes.remaining)} of ${formatStorage(usage.text_bytes.limit)} note text space left.`
+      + (!usage.shared_capacity_available ? " Shared storage is full. Contact the app owner or delete unused documents." : "");
+    els.uploadLimits.textContent = `Each file: up to ${formatStorage(usage.max_file_bytes)}, `
+      + `${usage.max_pdf_pages} PDF pages, and ${usage.max_text_chars.toLocaleString()} extracted characters.`;
+  } catch (error) {
+    if (version !== state.storageLoadVersion || state.token !== token
+        || state.apiBase !== apiBase || !state.user) return;
+    state.storageUsage = null;
+    els.storageStatus.textContent = "Storage allowance could not be loaded. Refresh documents to try again.";
+    els.uploadLimits.textContent = "";
   }
 }
 
@@ -607,13 +649,19 @@ async function seedDemo() {
 
 async function uploadDocument(event) {
   event.preventDefault();
+  if (state.uploadBusy) return;
+  state.uploadBusy = true;
   setBusy(event.submitter, true);
   try {
     const courseId = requireCourseId();
     const file = els.documentFile.files[0];
     if (!file) throw new Error("Select a file");
+    const allowance = state.storageUsage;
+    if (allowance && file.size > allowance.max_file_bytes) {
+      throw new Error(`File exceeds ${formatStorage(allowance.max_file_bytes)}. Choose a smaller file or split your notes.`);
+    }
 
-    const endpoint = file.type === "application/pdf" || file.name.endsWith(".pdf")
+    const endpoint = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
       ? "pdf"
       : "text";
     const data = new FormData();
@@ -629,12 +677,15 @@ async function uploadDocument(event) {
     await refreshMetrics();
   } catch (error) {
     showToast(error.message, "bad");
+    await refreshStorage();
   } finally {
+    state.uploadBusy = false;
     setBusy(event.submitter, false);
   }
 }
 
 async function refreshDocuments() {
+  await refreshStorage();
   try {
     const courseId = requireCourseId();
     const documents = await request(`/courses/${courseId}/documents`);
@@ -647,7 +698,9 @@ async function refreshDocuments() {
               ${statusPill(document.status)}
               <span class="pill">${document.chunk_count} chunks</span>
               <span class="pill">${escapeHtml(document.content_type)}</span>
+              <span class="pill">${formatStorage(document.storage_bytes || 0)} note text</span>
             </div>
+            <button type="button" class="secondary" data-delete-document="${document.id}">Delete document</button>
           </article>
         `,
       )
@@ -657,6 +710,25 @@ async function refreshDocuments() {
     showToast(error.message, "bad");
   }
 }
+
+async function removeDocument(event) {
+  const button = event.target.closest("[data-delete-document]");
+  if (!button || button.disabled) return;
+  if (!window.confirm("Delete this document and its source text? This cannot be undone. Saved study work will remain.")) return;
+  setBusy(button, true);
+  try {
+    await request(`/documents/${button.dataset.deleteDocument}`, { method: "DELETE" });
+    await refreshDocuments();
+    await refreshMetrics();
+    showToast("Document deleted. Note storage freed.");
+  } catch (error) {
+    showToast(error.message, "bad");
+  } finally {
+    setBusy(button, false);
+  }
+}
+
+els.documentList.addEventListener("click", removeDocument);
 
 async function refreshMetrics() {
   if (!state.user?.is_admin) return;

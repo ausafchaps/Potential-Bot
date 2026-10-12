@@ -4,6 +4,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import Course, Document, DocumentChunk
+from app.services.storage import lock_storage
 
 
 class CourseNotFoundError(ValueError):
@@ -58,7 +59,8 @@ def list_document_chunks(db: Session, document_id: uuid.UUID) -> list[DocumentCh
 
 
 def delete_document(db: Session, document_id: uuid.UUID) -> None:
-    document = db.get(Document, document_id)
+    lock_storage(db)
+    document = db.get(Document, document_id, populate_existing=True)
     if document is None:
         raise DocumentNotFoundError("Document was not found")
 

@@ -19,6 +19,8 @@ from app.services import account_recovery, ai_usage, flashcard_review
 from app.services import auth_rate_limit as limiter
 from app.services.auth import hash_password
 from app.services.auth_rate_limit import AttemptLimit, AuthRateLimited, consume_attempts
+from app.services.storage import UploadLimited, totals
+from app.services.text_ingestion import ingest_text_document
 from auth_helpers import register_user
 from fastapi.testclient import TestClient
 from sqlalchemy import delete
@@ -28,6 +30,49 @@ pytestmark = pytest.mark.skipif(
     engine.dialect.name != "postgresql",
     reason="PostgreSQL integration test requires a PostgreSQL database",
 )
+
+
+@pytest.mark.parametrize("scope", ["user_documents", "user_bytes", "project_documents",
+                                    "project_bytes"])
+def test_postgres_upload_storage_admission_is_atomic(monkeypatch, scope):
+    user_ids, course_ids = [], []
+    with Session(engine) as db:
+        baseline_docs, baseline_bytes = totals(db)
+        for _ in range(2):
+            user_id = uuid.uuid4()
+            course = Course(owner=User(id=user_id, email=f"storage-{user_id}@example.com",
+                                      display_name="Storage test"), title="Storage test")
+            db.add(course)
+            db.flush()
+            user_ids.append(user_id)
+            course_ids.append(course.id)
+        db.commit()
+    monkeypatch.setattr(settings, "storage_user_document_limit",
+                        3 if scope == "user_documents" else 20)
+    monkeypatch.setattr(settings, "storage_user_text_bytes", 6 if scope == "user_bytes" else 1000)
+    monkeypatch.setattr(settings, "storage_project_document_limit",
+                        baseline_docs + 3 if scope == "project_documents" else baseline_docs + 100)
+    monkeypatch.setattr(settings, "storage_project_text_bytes",
+                        baseline_bytes + 6 if scope == "project_bytes" else baseline_bytes + 10000)
+
+    def attempt(index):
+        course_id = course_ids[index % 2] if scope.startswith("project") else course_ids[0]
+        with Session(engine) as db:
+            try:
+                ingest_text_document(db, course_id=course_id, filename="notes.txt",
+                                     content_type="text/plain", raw_content="é".encode())
+                return True
+            except UploadLimited:
+                return False
+    try:
+        with ThreadPoolExecutor(max_workers=8) as workers:
+            assert sum(workers.map(attempt, range(12))) == 3
+        with Session(engine) as db:
+            assert totals(db) == (baseline_docs + 3, baseline_bytes + 6)
+    finally:
+        with Session(engine) as db:
+            db.execute(delete(User).where(User.id.in_(user_ids)))
+            db.commit()
 
 
 @pytest.mark.parametrize("same_token", [True, False])
