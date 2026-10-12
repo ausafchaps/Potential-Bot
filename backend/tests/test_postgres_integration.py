@@ -184,6 +184,14 @@ def test_postgres_supports_core_learning_flow() -> None:
     assert question_response.status_code == 200
     assert question_response.json()["status"] == "answered"
 
+    dashboard_response = client.get(f"/courses/{course_id}/dashboard")
+    assert dashboard_response.status_code == 200
+    progress = dashboard_response.json()
+    assert progress["document_count"] == 1
+    assert progress["saved_count"] == 1
+    assert progress["saved_work"][0]["kind"] == "answer"
+    assert progress["next_action"]["type"] == "saved"
+
 
 def test_postgres_rate_limits_are_atomic_across_connections(monkeypatch) -> None:
     # Keep the workers in one window even if CI starts at a minute boundary.

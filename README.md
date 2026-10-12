@@ -48,6 +48,7 @@ Completed modules:
 - persisted flashcard reviews with answer reveal, ratings, and a due-card queue
 - email verification and password reset with expiring single-use links
 - bounded uploads and shared note-storage allowances with document deletion
+- course study dashboard with due cards, recent quiz results, weak topics, and next steps
 
 ## Planned Capabilities
 
@@ -88,6 +89,7 @@ Users and courses:
 - `POST /users/{user_id}/courses`
 - `GET /users/{user_id}/courses`
 - `GET /courses/{course_id}`
+- `GET /courses/{course_id}/dashboard`
 
 Documents:
 
@@ -185,6 +187,15 @@ Flashcard reviews use a simple deterministic spaced-repetition schedule.
 Question-level concept tagging and more advanced adaptive scheduling remain planned.
 
 ## Frontend Demo
+
+**Dashboard** is the starting view for the selected course. It shows ready notes,
+due flashcards, quiz-attempt totals, recent results, topics to revisit, and saved
+study work. Its next-step button starts a review, reopens a saved quiz/item,
+prepares a question, or focuses the upload control. Preparing a question does not
+submit it; dashboard reads and saved work use no AI allowance. Results and saved
+items reopen in the existing Quiz, Ask, and Flashcards views. Refresh or return
+to Dashboard to see updated progress. Change courses from Workspace. The dashboard
+uses existing data and requires no migration or new service.
 
 The local frontend demo is a dependency-free static app in `frontend/`. It talks
 to the FastAPI backend and covers the main portfolio flow: workspace creation,
