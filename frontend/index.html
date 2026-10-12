@@ -122,7 +122,8 @@
 
         <section class="demo-panel">
           <nav class="tabs" aria-label="Demo views">
-            <button class="tab-button active" type="button" data-tab="ask">Ask</button>
+            <button class="tab-button active" type="button" data-tab="dashboard">Dashboard</button>
+            <button class="tab-button" type="button" data-tab="ask">Ask</button>
             <button class="tab-button" type="button" data-tab="quiz">Quiz</button>
             <button class="tab-button" type="button" data-tab="plan">Plan</button>
             <button class="tab-button" type="button" data-tab="flashcards">Flashcards</button>
@@ -130,7 +131,44 @@
             <button class="tab-button" type="button" data-tab="review">Review</button>
           </nav>
 
-          <section id="askTab" class="tab-pane active">
+          <section id="dashboardTab" class="tab-pane active">
+            <div class="toolbar dashboard-heading">
+              <div><p class="dashboard-eyebrow">YOUR STUDY WORKSPACE</p><h2 id="dashboardTitle">Your study dashboard</h2></div>
+              <button id="refreshDashboardButton" class="secondary" type="button">Refresh dashboard</button>
+            </div>
+            <p id="dashboardStatus" role="status" aria-live="polite">Sign in and select a course to see your study progress.</p>
+            <div id="dashboardContent" hidden>
+              <div id="dashboardSummary" class="dashboard-summary"></div>
+              <article class="dashboard-next">
+                <div><p class="dashboard-eyebrow">NEXT STUDY STEP</p><h3 id="dashboardNextTitle"></h3><p id="dashboardNextReason"></p></div>
+                <button id="dashboardNextButton" type="button"></button>
+              </article>
+              <div class="dashboard-grid">
+                <section class="dashboard-panel">
+                  <div class="section-title"><h3>Flashcards to review</h3><button id="dashboardReviewButton" class="secondary" type="button">Review cards</button></div>
+                  <p id="dashboardReviewStatus"></p>
+                  <p class="dashboard-help">Reveal each answer, then rate how well you remembered it.</p>
+                </section>
+                <section class="dashboard-panel">
+                  <div class="section-title"><h3>Topics to revisit</h3><button id="dashboardPlanButton" class="secondary" type="button">Study plan</button></div>
+                  <p id="dashboardTopicsStatus" class="dashboard-help"></p>
+                  <div id="dashboardTopics" class="compact-list"></div>
+                </section>
+                <section class="dashboard-panel">
+                  <h3>Recent quiz results</h3>
+                  <p id="dashboardScoresStatus" class="dashboard-help"></p>
+                  <div id="dashboardScores" class="compact-list"></div>
+                </section>
+                <section class="dashboard-panel">
+                  <div class="section-title"><h3>Continue studying</h3><button id="dashboardLibraryButton" class="secondary" type="button">All saved work</button></div>
+                  <p id="dashboardSavedStatus" class="dashboard-help"></p>
+                  <div id="dashboardSaved" class="compact-list"></div>
+                </section>
+              </div>
+            </div>
+          </section>
+
+          <section id="askTab" class="tab-pane">
             <form id="askForm" class="action-row">
               <input
                 id="questionInput"

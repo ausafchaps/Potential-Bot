@@ -6,6 +6,7 @@ from app.api.routes.admin import router as admin_router
 from app.api.routes.answers import router as answers_router
 from app.api.routes.auth import router as auth_router
 from app.api.routes.courses import router as courses_router
+from app.api.routes.dashboard import router as dashboard_router
 from app.api.routes.documents import document_router
 from app.api.routes.documents import router as documents_router
 from app.api.routes.flashcard_review import router as flashcard_review_router
@@ -25,6 +26,7 @@ api_router.include_router(account_recovery_router)
 api_router.include_router(admin_router, dependencies=[Depends(require_admin)])
 api_router.include_router(answers_router, dependencies=[Depends(require_resource_owner)])
 api_router.include_router(courses_router, dependencies=[Depends(require_resource_owner)])
+api_router.include_router(dashboard_router, dependencies=[Depends(require_resource_owner)])
 api_router.include_router(document_router, dependencies=[Depends(require_resource_owner)])
 api_router.include_router(documents_router, dependencies=[Depends(require_resource_owner)])
 api_router.include_router(flashcards_router, dependencies=[Depends(require_resource_owner)])

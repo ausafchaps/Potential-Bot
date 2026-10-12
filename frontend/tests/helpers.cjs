@@ -28,6 +28,7 @@ class Element {
   addEventListener(name, listener) { this.listeners[name] = listener; }
   querySelectorAll() { return []; }
   scrollIntoView() {}
+  focus() { this.focused = true; }
   getContext() {
     return { clearRect() {}, fillRect() {}, beginPath() {}, moveTo() {}, lineTo() {}, stroke() {}, arc() {}, fill() {} };
   }
@@ -39,7 +40,7 @@ function harness(responder, options = {}) {
     if (!nodes.has(id)) nodes.set(id, new Element(id));
     return nodes.get(id);
   };
-  const tabs = ["ask", "quiz", "plan", "flashcards", "library", "review"].map((name) => {
+  const tabs = ["dashboard", "ask", "quiz", "plan", "flashcards", "library", "review"].map((name) => {
     const tab = new Element();
     tab.dataset.tab = name;
     return tab;

@@ -26,9 +26,30 @@ const state = {
   storageUsage: null,
   storageLoadVersion: 0,
   uploadBusy: false,
+  dashboard: null,
+  dashboardLoadVersion: 0,
 };
 
 const els = {
+  dashboardTab: document.querySelector("#dashboardTab"),
+  dashboardTitle: document.querySelector("#dashboardTitle"),
+  dashboardStatus: document.querySelector("#dashboardStatus"),
+  dashboardContent: document.querySelector("#dashboardContent"),
+  dashboardSummary: document.querySelector("#dashboardSummary"),
+  dashboardNextTitle: document.querySelector("#dashboardNextTitle"),
+  dashboardNextReason: document.querySelector("#dashboardNextReason"),
+  dashboardNextButton: document.querySelector("#dashboardNextButton"),
+  dashboardReviewStatus: document.querySelector("#dashboardReviewStatus"),
+  dashboardReviewButton: document.querySelector("#dashboardReviewButton"),
+  dashboardTopicsStatus: document.querySelector("#dashboardTopicsStatus"),
+  dashboardTopics: document.querySelector("#dashboardTopics"),
+  dashboardScoresStatus: document.querySelector("#dashboardScoresStatus"),
+  dashboardScores: document.querySelector("#dashboardScores"),
+  dashboardSavedStatus: document.querySelector("#dashboardSavedStatus"),
+  dashboardSaved: document.querySelector("#dashboardSaved"),
+  dashboardLibraryButton: document.querySelector("#dashboardLibraryButton"),
+  dashboardPlanButton: document.querySelector("#dashboardPlanButton"),
+  refreshDashboardButton: document.querySelector("#refreshDashboardButton"),
   apiBase: document.querySelector("#apiBase"),
   saveApiButton: document.querySelector("#saveApiButton"),
   seedDemoButton: document.querySelector("#seedDemoButton"),
@@ -131,6 +152,7 @@ function saveState() {
 
 
 function clearStudyViews() {
+  clearDashboard();
   state.reviewLoadVersion += 1;
   state.reviewQueue = null;
   state.reviewRevealed = false;
@@ -174,6 +196,7 @@ function clearStudyViews() {
 }
 
 function renderAccount() {
+  document.body?.classList.toggle("signed-in", Boolean(state.user));
   els.authForm.hidden = Boolean(state.user);
   els.logoutButton.hidden = !state.user;
   els.metricsSection.hidden = !state.user?.is_admin;
@@ -207,6 +230,7 @@ function clearAccount() {
   els.storageStatus.textContent = "";
   els.uploadLimits.textContent = "";
   clearStudyViews();
+  activateTab("dashboard");
   saveState();
   renderAccount();
 }
@@ -248,6 +272,7 @@ async function submitAuth(event) {
     await refreshAiUsage();
     await refreshStorage();
     if (state.verificationRequired && !state.user.email_verified) {
+      await refreshDashboard();
       showToast("Verify your email to open your study workspace.");
       return;
     }
@@ -288,7 +313,10 @@ async function restoreAccount() {
     await loadAuthCapabilities();
     await refreshAiUsage();
     await refreshStorage();
-    if (state.verificationRequired && !state.user.email_verified) return;
+    if (state.verificationRequired && !state.user.email_verified) {
+      await refreshDashboard();
+      return;
+    }
     await refreshCourses();
     if (state.courseId) await refreshDocuments();
     refreshVisibleLibrary();
@@ -674,6 +702,7 @@ async function uploadDocument(event) {
     els.documentFile.value = "";
     showToast("Document uploaded");
     await refreshDocuments();
+    refreshVisibleLibrary();
     await refreshMetrics();
   } catch (error) {
     showToast(error.message, "bad");
@@ -719,6 +748,7 @@ async function removeDocument(event) {
   try {
     await request(`/documents/${button.dataset.deleteDocument}`, { method: "DELETE" });
     await refreshDocuments();
+    refreshVisibleLibrary();
     await refreshMetrics();
     showToast("Document deleted. Note storage freed.");
   } catch (error) {
@@ -776,6 +806,7 @@ async function askQuestion(event) {
     els.savedAnswerControls.hidden = true;
     renderAnswer(answer);
     showToast("Answer ready");
+    refreshVisibleLibrary();
     await refreshMetrics();
   } catch (error) {
     showToast(error.message, "bad");
@@ -834,6 +865,7 @@ async function generateQuiz(event) {
     els.quizHistoryStatus.textContent = "No attempts yet. Submit the quiz to save a score.";
     els.quizHistoryList.innerHTML = "";
     showToast("Quiz generated");
+    refreshVisibleLibrary();
   } catch (error) {
     showToast(error.message, "bad");
   } finally {
@@ -912,6 +944,7 @@ async function submitAttempt(event) {
     renderAttempt(attempt);
     await refreshQuizHistory(quizId);
     showToast("Attempt graded");
+    refreshVisibleLibrary();
     await refreshPlan();
     await refreshMetrics();
   } catch (error) {
@@ -1013,6 +1046,7 @@ async function generateFlashcards(event) {
     if (version !== state.libraryOpenVersion) return;
     renderFlashcards(set);
     showToast("Flashcards ready");
+    refreshVisibleLibrary();
   } catch (error) {
     showToast(error.message, "bad");
   } finally {
@@ -1052,8 +1086,124 @@ function formatSavedDate(value) {
 }
 
 function refreshVisibleLibrary() {
+  if (els.dashboardTab.classList.contains("active")) refreshDashboard();
   if (els.libraryTab.classList.contains("active")) refreshLibrary();
   if (els.reviewTab.classList.contains("active")) refreshReviewQueue();
+}
+
+function clearDashboard() {
+  state.dashboardLoadVersion += 1;
+  state.dashboard = null;
+  els.dashboardContent.hidden = true;
+  els.dashboardTitle.textContent = "Your study dashboard";
+  els.dashboardStatus.textContent = "Sign in and select a course to see your study progress.";
+  for (const key of ["dashboardSummary", "dashboardTopics", "dashboardScores", "dashboardSaved"]) {
+    els[key].innerHTML = "";
+  }
+  for (const key of ["dashboardNextTitle", "dashboardNextReason", "dashboardNextButton",
+    "dashboardReviewStatus", "dashboardTopicsStatus", "dashboardScoresStatus", "dashboardSavedStatus"]) {
+    els[key].textContent = "";
+  }
+  setBusy(els.refreshDashboardButton, false);
+}
+
+async function refreshDashboard() {
+  clearDashboard();
+  const version = state.dashboardLoadVersion;
+  const workspace = state.workspaceVersion;
+  const current = () => version === state.dashboardLoadVersion && workspace === state.workspaceVersion;
+  if (!state.user) return;
+  if (state.verificationRequired && !state.user.email_verified) {
+    els.dashboardStatus.textContent = "Verify your email before opening your study dashboard.";
+    return;
+  }
+  if (!state.courseId) {
+    els.dashboardStatus.textContent = "Create your first course in Workspace, then add notes to begin.";
+    return;
+  }
+  els.dashboardStatus.textContent = "Loading your saved study progress…";
+  setBusy(els.refreshDashboardButton, true);
+  try {
+    const data = await request(`/courses/${requireCourseId()}/dashboard`);
+    if (!current()) return;
+    state.dashboard = data;
+    renderDashboard(data);
+  } catch (error) {
+    if (current()) els.dashboardStatus.textContent = `Dashboard could not be loaded: ${error.message}. Use Refresh dashboard to retry.`;
+  } finally {
+    if (current()) setBusy(els.refreshDashboardButton, false);
+  }
+}
+
+function renderDashboard(data) {
+  els.dashboardTitle.textContent = data.course_title;
+  els.dashboardStatus.textContent = "Progress for the selected course. Refresh to see the latest activity.";
+  els.dashboardContent.hidden = false;
+  const tiles = [[data.review.due_count, "Cards due"], [data.quiz_attempt_count, "Quiz attempts"],
+    [data.saved_count, "Saved study items"], [data.document_count, "Ready documents"]];
+  els.dashboardSummary.innerHTML = tiles.map(([value, label]) =>
+    `<div class="dashboard-stat"><strong>${escapeHtml(value)}</strong><span>${label}</span></div>`).join("");
+  els.dashboardNextTitle.textContent = data.next_action.title;
+  els.dashboardNextReason.textContent = data.next_action.reason;
+  els.dashboardNextButton.textContent = data.next_action.label;
+  els.dashboardNextButton.disabled = false;
+  els.dashboardReviewButton.disabled = data.review.due_count === 0;
+  els.dashboardReviewStatus.textContent = data.review.due_count
+    ? `${data.review.due_count} of ${data.review.total_count} cards are ready now.`
+    : data.review.next_due_at ? `All caught up. Next cards due ${formatSavedDate(data.review.next_due_at)}.`
+      : "No cards to review yet. Generate flashcards from your notes to start.";
+  els.dashboardTopicsStatus.textContent = data.weak_topics.length ? "Based on your saved quiz answers."
+    : data.quiz_attempt_count ? "No weak topics detected in your quiz results so far."
+      : "Complete a quiz to discover topics to revisit.";
+  els.dashboardTopics.innerHTML = data.weak_topics.map((topic) => `
+    <article class="list-row"><h3>${escapeHtml(topic.topic)}</h3>
+      <p>${escapeHtml(formatPercent(topic.accuracy_rate))} accuracy · ${escapeHtml(topic.attempt_count)} attempt${topic.attempt_count === 1 ? "" : "s"}</p></article>`).join("");
+  els.dashboardScoresStatus.textContent = data.recent_scores.length
+    ? "Open a result to review the answers you missed." : "No quiz results yet. Complete a quiz to save your first score.";
+  els.dashboardScores.innerHTML = data.recent_scores.map((score) => `
+    <article class="list-row"><h3>${escapeHtml(score.title)}</h3>
+      <p>${Math.round(score.score_percent)}% · ${escapeHtml(score.correct_count)}/${escapeHtml(score.question_count)} correct</p>
+      <p class="dashboard-help">${escapeHtml(formatSavedDate(score.created_at))}</p>
+      <button type="button" data-dashboard-score="${escapeHtml(score.id)}">Review result</button></article>`).join("");
+  const labels = { answer: "Answer", quiz: "Quiz", flashcards: "Flashcards" };
+  els.dashboardSavedStatus.textContent = data.saved_work.length
+    ? "Your latest saved study work. Reopening uses no AI allowance." : "Saved answers, quizzes, and flashcards will appear here.";
+  els.dashboardSaved.innerHTML = data.saved_work.map((item) => `
+    <article class="list-row"><h3>${escapeHtml(item.title)}</h3>
+      <p class="dashboard-help">${labels[item.kind]} · ${escapeHtml(formatSavedDate(item.created_at))}</p>
+      <button type="button" data-dashboard-saved="${escapeHtml(item.id)}" data-dashboard-kind="${item.kind}">Open</button></article>`).join("");
+}
+
+function focusWorkspace(element) {
+  element.scrollIntoView({ behavior: "smooth", block: "center" });
+  element.focus();
+}
+
+async function runDashboardAction() {
+  const action = state.dashboard?.next_action;
+  if (!action) return;
+  if (action.type === "review") {
+    activateTab("review");
+    await refreshReviewQueue();
+  } else if (action.type === "saved") {
+    await openLibraryItem(action.kind, action.id, els.dashboardNextButton);
+  } else if (action.type === "ask") {
+    els.questionInput.value = action.prompt;
+    activateTab("ask");
+    els.questionInput.focus();
+  } else if (action.type === "upload") {
+    focusWorkspace(els.documentFile);
+  }
+}
+
+async function openDashboardScore(id, button) {
+  const score = state.dashboard?.recent_scores.find((item) => item.id === id);
+  if (!score) return;
+  const workspace = state.workspaceVersion;
+  const opened = await openLibraryItem("quiz", score.quiz_id, button);
+  if (opened && workspace === state.workspaceVersion && state.quiz?.id === score.quiz_id) {
+    await openSavedAttempt(score.id, button);
+  }
 }
 
 async function refreshLibrary() {
@@ -1179,8 +1329,10 @@ async function openLibraryItem(kind, id, button) {
       renderFlashcards(set);
       activateTab("flashcards");
     }
+    return current();
   } catch (error) {
     if (current()) showToast(`Could not open saved work: ${error.message}`, "bad");
+    return false;
   } finally {
     setBusy(button, false);
   }
@@ -1338,6 +1490,7 @@ async function submitReview(rating) {
     if (!current()) return;
     setReviewSaving(false);
     await refreshReviewQueue({ notice: `Review saved. This card returns ${formatSavedDate(saved.due_at)}.` });
+    if (els.dashboardTab.classList.contains("active")) refreshDashboard();
   } catch (error) {
     if (!current()) return;
     setReviewSaving(false);
@@ -1365,6 +1518,7 @@ function setupTabs() {
   document.querySelectorAll(".tab-button").forEach((button) => {
     button.addEventListener("click", () => {
       activateTab(button.dataset.tab);
+      if (button.dataset.tab === "dashboard") refreshDashboard();
       if (button.dataset.tab === "library") refreshLibrary();
       if (button.dataset.tab === "review") refreshReviewQueue();
     });
@@ -1448,6 +1602,29 @@ function bindEvents() {
     if (button) openSavedAttempt(button.dataset.attemptId, button);
   });
   els.refreshReviewButton.addEventListener("click", () => refreshReviewQueue());
+  els.refreshDashboardButton.addEventListener("click", refreshDashboard);
+  els.dashboardNextButton.addEventListener("click", runDashboardAction);
+  els.dashboardReviewButton.addEventListener("click", () => {
+    activateTab("review");
+    refreshReviewQueue();
+  });
+  els.dashboardLibraryButton.addEventListener("click", () => {
+    activateTab("library");
+    refreshLibrary();
+  });
+  els.dashboardPlanButton.addEventListener("click", () => {
+    activateTab("plan");
+    refreshPlan();
+  });
+  els.dashboardSaved.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-dashboard-saved]");
+    if (button && !button.disabled) openLibraryItem(button.dataset.dashboardKind,
+      button.dataset.dashboardSaved, button);
+  });
+  els.dashboardScores.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-dashboard-score]");
+    if (button && !button.disabled) openDashboardScore(button.dataset.dashboardScore, button);
+  });
   els.revealReviewButton.addEventListener("click", revealReviewAnswer);
   els.reviewRatings.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-review-rating]");
