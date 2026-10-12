@@ -101,6 +101,7 @@
             <button class="tab-button" type="button" data-tab="plan">Plan</button>
             <button class="tab-button" type="button" data-tab="flashcards">Flashcards</button>
             <button class="tab-button" type="button" data-tab="library">Library</button>
+            <button class="tab-button" type="button" data-tab="review">Review</button>
           </nav>
 
           <section id="askTab" class="tab-pane active">
@@ -161,6 +162,30 @@
             </form>
             <div id="flashcardList" class="flashcard-list"></div>
           </section>
+          <section id="reviewTab" class="tab-pane">
+            <div class="toolbar">
+              <div><h2>Flashcard review</h2><p>Review cards due now in the selected course. Progress saves after each rating.</p></div>
+              <button id="refreshReviewButton" type="button">Refresh due cards</button>
+            </div>
+            <p id="reviewStatus" role="status" aria-live="polite">Sign in and select a course to review cards.</p>
+            <p id="reviewNotice" role="status" aria-live="polite"></p>
+            <article id="reviewCard" class="result-surface" hidden>
+              <p id="reviewCardTitle"></p>
+              <h3 id="reviewFront"></h3>
+              <button id="revealReviewButton" type="button">Reveal answer</button>
+              <div id="reviewAnswer" hidden>
+                <p id="reviewBack"></p>
+                <div id="reviewCitations" class="evidence-list"></div>
+              </div>
+              <div id="reviewRatings" class="review-ratings" hidden>
+                <button type="button" data-review-rating="again">Again</button>
+                <button type="button" data-review-rating="hard">Hard</button>
+                <button type="button" data-review-rating="good">Good</button>
+                <button type="button" data-review-rating="easy">Easy</button>
+              </div>
+            </article>
+          </section>
+
           <section id="libraryTab" class="tab-pane">
             <div class="toolbar">
               <div><h2>Study library</h2><p>Saved work for the course selected in your workspace.</p></div>

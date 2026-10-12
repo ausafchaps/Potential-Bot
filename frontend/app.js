@@ -16,6 +16,10 @@ const state = {
   libraryItems: [],
   libraryPage: 0,
   savedQuestion: null,
+  reviewQueue: null,
+  reviewLoadVersion: 0,
+  reviewRevealed: false,
+  reviewSaving: false,
 };
 
 const els = {
@@ -74,6 +78,18 @@ const els = {
   libraryPageStatus: document.querySelector("#libraryPageStatus"),
   libraryPrevious: document.querySelector("#libraryPrevious"),
   libraryNext: document.querySelector("#libraryNext"),
+  reviewTab: document.querySelector("#reviewTab"),
+  refreshReviewButton: document.querySelector("#refreshReviewButton"),
+  reviewStatus: document.querySelector("#reviewStatus"),
+  reviewNotice: document.querySelector("#reviewNotice"),
+  reviewCard: document.querySelector("#reviewCard"),
+  reviewCardTitle: document.querySelector("#reviewCardTitle"),
+  reviewFront: document.querySelector("#reviewFront"),
+  reviewBack: document.querySelector("#reviewBack"),
+  reviewAnswer: document.querySelector("#reviewAnswer"),
+  reviewCitations: document.querySelector("#reviewCitations"),
+  revealReviewButton: document.querySelector("#revealReviewButton"),
+  reviewRatings: document.querySelector("#reviewRatings"),
 };
 
 const sampleNotes = `Binary search quickly finds values in a sorted array by repeatedly halving the search space.
@@ -91,6 +107,18 @@ function saveState() {
 
 
 function clearStudyViews() {
+  state.reviewLoadVersion += 1;
+  state.reviewQueue = null;
+  state.reviewRevealed = false;
+  state.reviewSaving = false;
+  els.reviewCard.hidden = true;
+  els.reviewFront.textContent = "";
+  els.reviewBack.textContent = "";
+  els.reviewCardTitle.textContent = "";
+  els.reviewCitations.innerHTML = "";
+  els.reviewNotice.textContent = "";
+  els.reviewStatus.textContent = "Sign in and select a course to review cards.";
+  setBusy(els.refreshReviewButton, false);
   state.workspaceVersion += 1;
   state.libraryLoadVersion += 1;
   state.libraryOpenVersion += 1;
@@ -273,7 +301,9 @@ async function request(path, options = {}) {
   if (!response.ok) {
     if (response.status === 401 && state.token) clearAccount();
     const detail = payload?.detail || response.statusText;
-    throw new Error(Array.isArray(detail) ? detail[0]?.msg || response.statusText : detail);
+    const error = new Error(Array.isArray(detail) ? detail[0]?.msg || response.statusText : detail);
+    error.status = response.status;
+    throw error;
   }
   return payload;
 }
@@ -787,6 +817,7 @@ function formatSavedDate(value) {
 
 function refreshVisibleLibrary() {
   if (els.libraryTab.classList.contains("active")) refreshLibrary();
+  if (els.reviewTab.classList.contains("active")) refreshReviewQueue();
 }
 
 async function refreshLibrary() {
@@ -981,6 +1012,109 @@ async function openSavedAttempt(id, button) {
   }
 }
 
+function setReviewSaving(saving) {
+  state.reviewSaving = saving;
+  setBusy(els.refreshReviewButton, saving);
+  els.reviewRatings.querySelectorAll("button").forEach((button) => setBusy(button, saving));
+}
+
+async function refreshReviewQueue(options = {}) {
+  if (state.reviewSaving) return;
+  const version = ++state.reviewLoadVersion;
+  const workspace = state.workspaceVersion;
+  state.reviewQueue = null;
+  state.reviewRevealed = false;
+  els.reviewCard.hidden = true;
+  els.reviewNotice.textContent = options.notice || "";
+  if (!state.user || !state.courseId) {
+    els.reviewStatus.textContent = "Sign in and select a course to review cards.";
+    return;
+  }
+  setBusy(els.refreshReviewButton, true);
+  els.reviewStatus.textContent = "Loading due cards…";
+  try {
+    const courseId = requireCourseId();
+    const queue = await request(`/courses/${courseId}/flashcard-review`);
+    if (version !== state.reviewLoadVersion || workspace !== state.workspaceVersion) return;
+    state.reviewQueue = queue;
+    renderReviewCard();
+  } catch (error) {
+    if (version === state.reviewLoadVersion && workspace === state.workspaceVersion) {
+      els.reviewStatus.textContent = `Due cards could not be loaded: ${error.message}. Use Refresh due cards to retry.`;
+    }
+  } finally {
+    if (version === state.reviewLoadVersion) setBusy(els.refreshReviewButton, false);
+  }
+}
+
+function renderReviewCard() {
+  const queue = state.reviewQueue;
+  const card = queue?.cards[0];
+  state.reviewRevealed = false;
+  els.reviewAnswer.hidden = true;
+  els.reviewRatings.hidden = true;
+  els.revealReviewButton.hidden = false;
+  els.reviewCard.hidden = !card;
+  els.reviewCitations.innerHTML = "";
+  els.reviewBack.textContent = "";
+  if (!queue) return;
+  if (!queue.total_count) {
+    els.reviewStatus.textContent = "No flashcards yet. Generate a set in Flashcards to start reviewing.";
+  } else if (!card) {
+    els.reviewStatus.textContent = `You're caught up. Reviewed ${queue.reviewed_count} of ${queue.total_count} cards.`
+      + (queue.next_due_at ? ` Next review: ${formatSavedDate(queue.next_due_at)}. Refresh when it is due.` : "");
+  } else {
+    els.reviewStatus.textContent = `${queue.due_count} cards due now · reviewed ${queue.reviewed_count} of ${queue.total_count}.`;
+    els.reviewCardTitle.textContent = `${card.title} · ${card.version ? "Review" : "New card"}`;
+    els.reviewFront.textContent = card.front;
+  }
+}
+
+function revealReviewAnswer() {
+  const card = state.reviewQueue?.cards[0];
+  if (!card || state.reviewSaving) return;
+  state.reviewRevealed = true;
+  els.reviewBack.textContent = card.back;
+  els.reviewAnswer.hidden = false;
+  els.reviewRatings.hidden = false;
+  els.revealReviewButton.hidden = true;
+  els.reviewCitations.innerHTML = card.citations.map((citation) => `
+    <article class="list-row">
+      <h3>${escapeHtml(citation.document_filename)}</h3>
+      <p>${escapeHtml(citation.text)}</p>
+      ${citation.page_number ? `<span class="pill">Page ${citation.page_number}</span>` : ""}
+    </article>`).join("");
+  setReviewSaving(false);
+}
+
+async function submitReview(rating) {
+  const card = state.reviewQueue?.cards[0];
+  if (!card || !state.reviewRevealed || state.reviewSaving) return;
+  const workspace = state.workspaceVersion;
+  const version = state.reviewLoadVersion;
+  const current = () => workspace === state.workspaceVersion && version === state.reviewLoadVersion;
+  setReviewSaving(true);
+  els.reviewNotice.textContent = "Saving review…";
+  try {
+    const saved = await request(`/flashcards/${card.id}/reviews`, {
+      method: "POST", body: JSON.stringify({ rating, version: card.version }),
+    });
+    if (!current()) return;
+    setReviewSaving(false);
+    await refreshReviewQueue({ notice: `Review saved. This card returns ${formatSavedDate(saved.due_at)}.` });
+  } catch (error) {
+    if (!current()) return;
+    setReviewSaving(false);
+    if (error.status === 409) {
+      await refreshReviewQueue({ notice: "This card's progress changed. The due queue has been refreshed." });
+    } else {
+      els.reviewNotice.textContent = `Review could not be saved: ${error.message}. Retry the rating or refresh due cards.`;
+    }
+  } finally {
+    if (current()) setReviewSaving(false);
+  }
+}
+
 function activateTab(name) {
   document.querySelectorAll(".tab-button").forEach((tab) => {
     tab.classList.toggle("active", tab.dataset.tab === name);
@@ -996,6 +1130,7 @@ function setupTabs() {
     button.addEventListener("click", () => {
       activateTab(button.dataset.tab);
       if (button.dataset.tab === "library") refreshLibrary();
+      if (button.dataset.tab === "review") refreshReviewQueue();
     });
   });
 }
@@ -1068,6 +1203,12 @@ function bindEvents() {
   els.quizHistoryList.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-attempt-id]");
     if (button) openSavedAttempt(button.dataset.attemptId, button);
+  });
+  els.refreshReviewButton.addEventListener("click", () => refreshReviewQueue());
+  els.revealReviewButton.addEventListener("click", revealReviewAnswer);
+  els.reviewRatings.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-review-rating]");
+    if (button) submitReview(button.dataset.reviewRating);
   });
 }
 
