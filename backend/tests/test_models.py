@@ -40,6 +40,7 @@ def test_core_tables_are_declared() -> None:
     inspector = inspect(engine)
 
     assert set(inspector.get_table_names()) == {
+        "account_tokens",
         "ai_usage_buckets",
         "auth_rate_limits",
         "auth_sessions",

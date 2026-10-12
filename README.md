@@ -46,6 +46,7 @@ Completed modules:
 - shared per-user and project AI generation budgets with a visible allowance
 - course study library for reopening saved answers, quizzes, scores, and flashcard sets
 - persisted flashcard reviews with answer reveal, ratings, and a due-card queue
+- email verification and password reset with expiring single-use links
 
 ## Planned Capabilities
 
@@ -282,9 +283,39 @@ its platform `x-vercel-forwarded-for` header when the system variable `VERCEL=1`
 is present. `AUTH_CLIENT_IP_SOURCE=direct` or `vercel` can override this choice.
 Enable `vercel` only behind Vercel's gateway; arbitrary forwarding headers are
 ignored in direct mode. Other hosts must configure their ASGI server to trust
-only their gateway's proxy addresses. Email verification, self-service password
-recovery, and MFA remain follow-up work. Public deployments require HTTPS and
+only their gateway's proxy addresses. MFA remains follow-up work. Public deployments require HTTPS and
 gateway request limits as an additional layer before application/body processing.
+
+Account recovery uses 15-minute reset links and 24-hour verification links by
+default. Links are random, stored only as hashes, single use, and bound to their
+purpose, email, and credential version. Resetting a password revokes every session
+and older account links; there is no automatic login after reset. Legacy accounts
+without password credentials remain operator-managed.
+
+`POST /auth/forgot-password` accepts an email and returns the same generic response
+for known and unknown eligible accounts. `POST /auth/resend-verification` requires
+sign-in. `POST /auth/reset-password` accepts `token` and `password`;
+`POST /auth/verify-email` accepts `token`. The frontend consumes tokens from URL
+fragments, strips the fragment immediately, and sends links only to the origin
+that served the page. Opening a verification link does not consume it until the
+student clicks **Verify email**. Tokens and passwords are never put in browser storage.
+
+Email delivery defaults to `EMAIL_PROVIDER=disabled`. Configure SMTP over TLS,
+`EMAIL_FROM`, and the canonical `PUBLIC_APP_URL` to enable real email. Both signup
+endpoints request a verification email once delivery is enabled. SMTP runs as a
+FastAPI response background task; it has no durable retry queue, so students can
+request another link if delivery fails. Provider failures are logged without
+addresses, link tokens, or credentials. Delivery must be tested on the deployed
+provider before requiring verified emails.
+
+Existing and new accounts start unverified. Verification is optional by default
+so the current deployment stays usable before email is configured. Set
+`AUTH_REQUIRE_EMAIL_VERIFICATION=true` after validating delivery to require it for
+workspace/admin access; account status, resend, and logout remain available.
+Email requests share 10/IP/hour, 3/email/hour, and 100/project/UTC-day defaults;
+these count attempts, including unknown addresses. Link submissions have a
+separate 30/IP/15-minute limit. Apply migration `20261012_0012` before serving the
+new code. See [SMTP setup](docs/deployment/account-email.md).
 
 ## LLM Providers
 

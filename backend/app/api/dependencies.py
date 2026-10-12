@@ -7,6 +7,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.db.session import get_db
 from app.models import (
     Answer,
@@ -63,6 +64,7 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 def require_admin(user: CurrentUser) -> None:
+    require_verified_email(user)
     if not user.is_admin:
         raise HTTPException(403, "Administrator access required")
 
@@ -73,6 +75,7 @@ def require_resource_owner(request: Request, db: Database, user: CurrentUser) ->
     This dependency is attached to every private router. Unknown resource paths
     fail closed so adding an endpoint cannot silently bypass ownership checks.
     """
+    require_verified_email(user)
     resources = {
         "user_id": (User, "User"),
         "course_id": (Course, "Course"),
@@ -115,3 +118,8 @@ def require_resource_owner(request: Request, db: Database, user: CurrentUser) ->
         checked = True
     if not checked:
         raise HTTPException(403, "Resource access is not configured")
+
+
+def require_verified_email(user: User) -> None:
+    if settings.auth_require_email_verification and not user.email_verified:
+        raise HTTPException(403, "Verify your email before opening your study workspace")

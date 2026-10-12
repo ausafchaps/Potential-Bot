@@ -3,7 +3,7 @@ import secrets
 from datetime import UTC, datetime, timedelta
 
 from pwdlib import PasswordHash
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -29,11 +29,24 @@ def authenticate(db: Session, email: str, password: str) -> User | None:
     if not valid or user is None or user.password_hash is None:
         return None
     if upgraded_hash:
-        user.password_hash = upgraded_hash
+        if db.scalar(update(User).where(
+            User.id == user.id, User.password_hash == stored_hash,
+            User.credential_version == user.credential_version,
+        ).values(password_hash=upgraded_hash).returning(User.id)) is None:
+            db.rollback()
+            return None
     return user
 
 
 def create_session(db: Session, user: User) -> tuple[str, AuthSession]:
+    # Serialize session creation with password resets. A login that verified an old
+    # password before a concurrent reset cannot create a session after that reset.
+    if db.scalar(update(User).where(
+        User.id == user.id, User.credential_version == user.credential_version,
+        User.password_hash == user.password_hash,
+    ).values(credential_version=User.credential_version).returning(User.id)) is None:
+        db.rollback()
+        raise CredentialsChanged("Invalid email or password")
     token = secrets.token_urlsafe(32)
     session = AuthSession(
         user_id=user.id,
@@ -44,3 +57,7 @@ def create_session(db: Session, user: User) -> tuple[str, AuthSession]:
     db.commit()
     db.refresh(session)
     return token, session
+
+
+class CredentialsChanged(ValueError):
+    pass

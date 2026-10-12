@@ -20,6 +20,9 @@ const state = {
   reviewLoadVersion: 0,
   reviewRevealed: false,
   reviewSaving: false,
+  emailEnabled: false,
+  verificationRequired: false,
+  accountLink: null,
 };
 
 const els = {
@@ -90,6 +93,21 @@ const els = {
   reviewCitations: document.querySelector("#reviewCitations"),
   revealReviewButton: document.querySelector("#revealReviewButton"),
   reviewRatings: document.querySelector("#reviewRatings"),
+  forgotPasswordButton: document.querySelector("#forgotPasswordButton"),
+  verificationSection: document.querySelector("#verificationSection"),
+  verificationStatus: document.querySelector("#verificationStatus"),
+  resendVerificationButton: document.querySelector("#resendVerificationButton"),
+  refreshVerificationButton: document.querySelector("#refreshVerificationButton"),
+  recoverySection: document.querySelector("#recoverySection"),
+  recoveryTitle: document.querySelector("#recoveryTitle"),
+  recoveryStatus: document.querySelector("#recoveryStatus"),
+  forgotPasswordForm: document.querySelector("#forgotPasswordForm"),
+  recoveryEmail: document.querySelector("#recoveryEmail"),
+  resetPasswordForm: document.querySelector("#resetPasswordForm"),
+  newPassword: document.querySelector("#newPassword"),
+  confirmPassword: document.querySelector("#confirmPassword"),
+  verifyEmailButton: document.querySelector("#verifyEmailButton"),
+  closeRecoveryButton: document.querySelector("#closeRecoveryButton"),
 };
 
 const sampleNotes = `Binary search quickly finds values in a sorted array by repeatedly halving the search space.
@@ -154,11 +172,18 @@ function renderAccount() {
   els.logoutButton.hidden = !state.user;
   els.metricsSection.hidden = !state.user?.is_admin;
   els.aiUsageSection.hidden = !state.user;
+  els.forgotPasswordButton.hidden = Boolean(state.user);
+  els.verificationSection.hidden = !state.user || !state.emailEnabled;
+  els.verificationStatus.textContent = state.user?.email_verified
+    ? "Email verified." : "Email not verified yet. Check your inbox or request a new link.";
+  els.resendVerificationButton.hidden = Boolean(state.user?.email_verified);
+  els.refreshVerificationButton.hidden = Boolean(state.user?.email_verified);
   els.accountStatus.textContent = state.user
     ? `Signed in as ${state.user.display_name}` : "Sign in to your study workspace.";
 }
 
 function clearAccount() {
+  closeRecovery();
   state.token = "";
   state.authApiBase = "";
   state.user = null;
@@ -208,7 +233,12 @@ async function submitAuth(event) {
     sessionStorage.setItem("studybot.authApiBase", state.authApiBase);
     saveState();
     renderAccount();
+    await loadAuthCapabilities();
     await refreshAiUsage();
+    if (state.verificationRequired && !state.user.email_verified) {
+      showToast("Verify your email to open your study workspace.");
+      return;
+    }
     await refreshCourses();
     if (state.courseId) await refreshDocuments();
     refreshVisibleLibrary();
@@ -243,7 +273,9 @@ async function restoreAccount() {
     state.user = await request("/auth/me");
     state.userId = state.user.id;
     renderAccount();
+    await loadAuthCapabilities();
     await refreshAiUsage();
+    if (state.verificationRequired && !state.user.email_verified) return;
     await refreshCourses();
     if (state.courseId) await refreshDocuments();
     refreshVisibleLibrary();
@@ -349,7 +381,139 @@ function syncIdsFromInputs() {
   const apiBase = els.apiBase.value.trim().replace(/\/$/, "");
   if (apiBase !== state.apiBase) clearAccount();
   state.apiBase = apiBase;
+  if (apiBase !== state.capabilitiesApiBase) loadAuthCapabilities();
   saveState();
+}
+
+async function loadAuthCapabilities() {
+  const apiBase = state.apiBase;
+  state.capabilitiesApiBase = apiBase;
+  state.emailEnabled = false;
+  try {
+    const response = await fetch(`${apiBase}/auth/capabilities`);
+    if (!response.ok) return;
+    const capabilities = await response.json();
+    if (state.apiBase !== apiBase) return;
+    state.emailEnabled = Boolean(capabilities.account_email_enabled);
+    state.verificationRequired = Boolean(capabilities.verification_required);
+    renderAccount();
+  } catch { /* Recovery stays unavailable until the server can confirm delivery setup. */ }
+}
+
+function closeRecovery() {
+  state.accountLink = null;
+  els.recoverySection.hidden = true;
+  els.forgotPasswordForm.hidden = true;
+  els.resetPasswordForm.hidden = true;
+  els.verifyEmailButton.hidden = true;
+  els.newPassword.value = "";
+  els.confirmPassword.value = "";
+  els.recoveryEmail.value = "";
+  els.recoveryStatus.textContent = "";
+}
+
+async function showForgotPassword() {
+  closeRecovery();
+  els.recoverySection.hidden = false;
+  els.recoveryTitle.textContent = "Reset your password";
+  await loadAuthCapabilities();
+  els.forgotPasswordForm.hidden = !state.emailEnabled;
+  els.recoveryStatus.textContent = state.emailEnabled
+    ? "Enter your account email to request a single-use reset link."
+    : "Account recovery is not available yet. Please contact the app owner.";
+}
+
+function detectAccountLink() {
+  const fragment = new URLSearchParams((window.location.hash || "").slice(1));
+  const purpose = fragment.has("reset") ? "reset" : fragment.has("verify") ? "verify" : "";
+  if (!purpose) return false;
+  const token = fragment.get(purpose);
+  window.history.replaceState(null, "", window.location.pathname + window.location.search);
+  // Always send an email link back to the origin that served it, never a saved API URL.
+  clearAccount();
+  state.apiBase = window.location.origin;
+  saveState();
+  els.recoverySection.hidden = false;
+  els.recoveryTitle.textContent = purpose === "reset" ? "Choose a new password" : "Verify your email";
+  if (!/^[A-Za-z0-9_-]{32,256}$/.test(token || "")) {
+    els.recoveryStatus.textContent = "This link is invalid. Request a new one.";
+    return true;
+  }
+  state.accountLink = { purpose, token, origin: window.location.origin };
+  els.resetPasswordForm.hidden = purpose !== "reset";
+  els.verifyEmailButton.hidden = purpose !== "verify";
+  els.recoveryStatus.textContent = purpose === "reset"
+    ? "Use at least 12 characters. Resetting signs out every existing session."
+    : "Confirm to verify the email address for this account.";
+  return true;
+}
+
+async function submitForgotPassword(event) {
+  event.preventDefault();
+  setBusy(event.submitter, true);
+  const workspace = state.workspaceVersion;
+  try {
+    syncIdsFromInputs();
+    const result = await request("/auth/forgot-password", {
+      method: "POST", body: JSON.stringify({ email: els.recoveryEmail.value }),
+    });
+    if (workspace !== state.workspaceVersion) return;
+    els.recoveryStatus.textContent = result.message;
+  } catch (error) {
+    if (workspace === state.workspaceVersion) els.recoveryStatus.textContent = error.message;
+  } finally { setBusy(event.submitter, false); }
+}
+
+async function submitAccountLink(event) {
+  event?.preventDefault();
+  const link = state.accountLink;
+  if (!link || state.apiBase !== link.origin) return;
+  const button = event?.submitter || els.verifyEmailButton;
+  setBusy(button, true);
+  try {
+    if (link.purpose === "reset" && els.newPassword.value !== els.confirmPassword.value) {
+      throw new Error("The passwords do not match.");
+    }
+    const payload = { token: link.token };
+    if (link.purpose === "reset") payload.password = els.newPassword.value;
+    const result = await request(link.purpose === "reset" ? "/auth/reset-password" : "/auth/verify-email", {
+      method: "POST", body: JSON.stringify(payload),
+    });
+    if (state.accountLink !== link) return;
+    clearAccount();
+    els.recoverySection.hidden = false;
+    els.recoveryTitle.textContent = link.purpose === "reset" ? "Password reset" : "Email verified";
+    els.recoveryStatus.textContent = result.message;
+  } catch (error) {
+    if (state.accountLink === link) els.recoveryStatus.textContent = error.message;
+  } finally {
+    els.newPassword.value = "";
+    els.confirmPassword.value = "";
+    setBusy(button, false);
+  }
+}
+
+async function resendVerification() {
+  setBusy(els.resendVerificationButton, true);
+  try {
+    const result = await request("/auth/resend-verification", { method: "POST" });
+    els.verificationStatus.textContent = result.message;
+  } catch (error) { showToast(error.message, "bad"); }
+  finally { setBusy(els.resendVerificationButton, false); }
+}
+
+async function refreshVerification() {
+  setBusy(els.refreshVerificationButton, true);
+  try {
+    state.user = await request("/auth/me");
+    renderAccount();
+    if (state.user.email_verified) {
+      await refreshCourses();
+      if (state.courseId) await refreshDocuments();
+      refreshVisibleLibrary();
+    }
+  } catch (error) { showToast(error.message, "bad"); }
+  finally { setBusy(els.refreshVerificationButton, false); }
 }
 
 function formatPercent(value) {
@@ -1172,6 +1336,13 @@ function bindEvents() {
   });
   els.authForm.addEventListener("submit", submitAuth);
   els.logoutButton.addEventListener("click", signOut);
+  els.forgotPasswordButton.addEventListener("click", showForgotPassword);
+  els.forgotPasswordForm.addEventListener("submit", submitForgotPassword);
+  els.resetPasswordForm.addEventListener("submit", submitAccountLink);
+  els.verifyEmailButton.addEventListener("click", () => submitAccountLink());
+  els.closeRecoveryButton.addEventListener("click", closeRecovery);
+  els.resendVerificationButton.addEventListener("click", resendVerification);
+  els.refreshVerificationButton.addEventListener("click", refreshVerification);
   els.courseSelect.addEventListener("change", async () => {
     state.courseId = els.courseSelect.value;
     clearStudyViews();
@@ -1214,7 +1385,11 @@ function bindEvents() {
 
 setupTabs();
 bindEvents();
+window.addEventListener("hashchange", () => {
+  if (detectAccountLink()) loadAuthCapabilities();
+});
 drawEvidenceCanvas();
 saveState();
 
-restoreAccount();
+if (!detectAccountLink()) restoreAccount();
+loadAuthCapabilities();

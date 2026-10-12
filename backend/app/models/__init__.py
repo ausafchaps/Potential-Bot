@@ -1,5 +1,6 @@
 """SQLAlchemy models package."""
 
+from app.models.account_token import AccountToken
 from app.models.ai_usage_bucket import AIUsageBucket
 from app.models.answer import Answer, AnswerStatus
 from app.models.answer_feedback import AnswerFeedback
@@ -28,6 +29,7 @@ from app.models.quiz_question_option import QuizQuestionOption
 from app.models.user import User
 
 __all__ = [
+    "AccountToken",
     "AIUsageBucket",
     "Answer",
     "AnswerFeedback",
