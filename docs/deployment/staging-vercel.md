@@ -63,6 +63,14 @@ main build. Existing flashcards become due immediately; reviews save their next
 due times in Neon without using AI allowance. Use separate databases for previews.
 
 Vercel functions accept request bodies up to 4.5 MB, including multipart overhead.
+StudyBot applies tighter defaults: 2 MiB files, 100-page PDFs, 200,000 extracted
+characters, and a multipart body cap of file size plus 64 KiB. Migration
+`20261012_0013` counts existing note text. Students share 20 document slots and
+2 MiB of stored text across their courses; the project has 500 slots and 50 MiB.
+Hourly upload attempts are limited to 10/student, 30/IP, and 100/project. These
+allowances cover note chunk text, including overlap, not the entire database.
+See `.env.example` for the positive `UPLOAD_*` and `STORAGE_*` settings. Deleting
+a document frees its allowance; existing over-limit work remains accessible.
 Use small text files and PDFs for staging. Requests have a 60-second maximum in
 this configuration. Uploaded text, chunks, and authentication sessions persist in
 PostgreSQL; the function filesystem is not used for persistent data.

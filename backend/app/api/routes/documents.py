@@ -2,8 +2,10 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.api.upload_limits import limit_uploads, read_upload
 from app.db.session import get_db
 from app.schemas.document import (
     DocumentChunkResponse,
@@ -26,6 +28,7 @@ from app.services.pdf_ingestion import (
     UnsupportedPdfDocumentError,
     ingest_pdf_document,
 )
+from app.services.storage import StorageUnavailable
 from app.services.text_ingestion import (
     TextIngestionFailure,
     UnsupportedTextDocumentError,
@@ -45,6 +48,7 @@ def build_document_summary(document, chunk_count: int) -> DocumentSummaryRespons
         status=document.status,
         page_count=document.page_count,
         chunk_count=chunk_count,
+        storage_bytes=document.storage_bytes,
         created_at=document.created_at,
         updated_at=document.updated_at,
     )
@@ -63,13 +67,14 @@ def list_course_documents_endpoint(
     return [build_document_summary(document, chunk_count) for document, chunk_count in documents]
 
 
-@router.post("/text", response_model=DocumentUploadResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/text", response_model=DocumentUploadResponse, status_code=status.HTTP_201_CREATED,
+             dependencies=[Depends(limit_uploads)])
 async def upload_text_document(
     course_id: uuid.UUID,
     file: Annotated[UploadFile, File()],
     db: Annotated[Session, Depends(get_db)],
 ) -> DocumentUploadResponse:
-    raw_content = await file.read()
+    raw_content = await read_upload(file)
 
     try:
         document = ingest_text_document(
@@ -95,6 +100,9 @@ async def upload_text_document(
                 "reason": exc.reason,
             },
         ) from exc
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise StorageUnavailable() from exc
 
     return DocumentUploadResponse(
         id=document.id,
@@ -104,18 +112,20 @@ async def upload_text_document(
         status=document.status,
         page_count=document.page_count,
         chunk_count=len(document.chunks),
+        storage_bytes=document.storage_bytes,
         created_at=document.created_at,
         updated_at=document.updated_at,
     )
 
 
-@router.post("/pdf", response_model=DocumentUploadResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/pdf", response_model=DocumentUploadResponse, status_code=status.HTTP_201_CREATED,
+             dependencies=[Depends(limit_uploads)])
 async def upload_pdf_document(
     course_id: uuid.UUID,
     file: Annotated[UploadFile, File()],
     db: Annotated[Session, Depends(get_db)],
 ) -> DocumentUploadResponse:
-    raw_content = await file.read()
+    raw_content = await read_upload(file)
 
     try:
         document = ingest_pdf_document(
@@ -147,6 +157,9 @@ async def upload_pdf_document(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=detail,
         ) from exc
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise StorageUnavailable() from exc
 
     return DocumentUploadResponse(
         id=document.id,
@@ -156,6 +169,7 @@ async def upload_pdf_document(
         status=document.status,
         page_count=document.page_count,
         chunk_count=len(document.chunks),
+        storage_bytes=document.storage_bytes,
         created_at=document.created_at,
         updated_at=document.updated_at,
     )
@@ -170,6 +184,9 @@ def get_document_endpoint(
         document, chunk_count = get_document_with_chunk_count(db, document_id)
     except DocumentNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise StorageUnavailable() from exc
 
     return build_document_summary(document, chunk_count)
 
@@ -194,3 +211,6 @@ def delete_document_endpoint(
         delete_document(db, document_id)
     except DocumentNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise StorageUnavailable() from exc

@@ -9,9 +9,11 @@ from app.api.routes.account_recovery import auto_verification
 from app.models import AuthSession, User
 from app.schemas.ai_usage import AIUsageResponse
 from app.schemas.auth import LoginRequest, SessionResponse
+from app.schemas.storage import StorageUsage
 from app.schemas.user import UserCreate, UserResponse
 from app.services.ai_usage import get_ai_usage
 from app.services.auth import CredentialsChanged, authenticate, create_session
+from app.services.storage import get_storage_usage
 from app.services.user_course import DuplicateUserEmailError, create_user
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -71,3 +73,9 @@ def logout(db: Database, session: Annotated[AuthSession, Depends(get_current_ses
 def ai_usage(db: Database, user: CurrentUser, response: Response) -> AIUsageResponse:
     response.headers["Cache-Control"] = "no-store"
     return get_ai_usage(db, user.id)
+
+
+@router.get("/storage-usage", response_model=StorageUsage)
+def storage_usage(db: Database, user: CurrentUser, response: Response) -> StorageUsage:
+    response.headers["Cache-Control"] = "no-store"
+    return get_storage_usage(db, user.id)

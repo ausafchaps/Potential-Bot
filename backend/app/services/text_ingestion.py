@@ -10,6 +10,7 @@ from app.services.ingestion import (
     create_processing_document,
     fail_document_ingestion,
 )
+from app.services.storage import check_file_size
 
 SUPPORTED_TEXT_CONTENT_TYPES = {"text/plain"}
 
@@ -32,6 +33,7 @@ def ingest_text_document(
     content_type: str,
     raw_content: bytes,
 ) -> Document:
+    check_file_size(raw_content)
     if content_type not in SUPPORTED_TEXT_CONTENT_TYPES and not filename.lower().endswith(".txt"):
         raise UnsupportedTextDocumentError("Only plain text documents are supported")
 

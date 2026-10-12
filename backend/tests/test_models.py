@@ -50,6 +50,7 @@ def test_core_tables_are_declared() -> None:
         "users",
         "courses",
         "documents",
+        "storage_lock",
         "document_chunks",
         "document_chunk_embeddings",
         "flashcard_citations",

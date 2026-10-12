@@ -48,6 +48,16 @@ class Settings(BaseSettings):
     ai_user_minute_limit: int = Field(default=3, ge=1, le=10000)
     ai_project_daily_limit: int = Field(default=100, ge=1, le=1000000)
     ai_project_minute_limit: int = Field(default=10, ge=1, le=10000)
+    upload_max_bytes: int = Field(default=2 * 1024 * 1024, ge=1, le=4 * 1024 * 1024)
+    upload_max_pdf_pages: int = Field(default=100, ge=1, le=1000)
+    upload_max_text_chars: int = Field(default=200_000, ge=1, le=2_000_000)
+    storage_user_document_limit: int = Field(default=20, ge=1, le=1000)
+    storage_user_text_bytes: int = Field(default=2 * 1024 * 1024, ge=1)
+    storage_project_document_limit: int = Field(default=500, ge=1)
+    storage_project_text_bytes: int = Field(default=50 * 1024 * 1024, ge=1)
+    upload_user_hourly_limit: int = Field(default=10, ge=1, le=1000)
+    upload_ip_hourly_limit: int = Field(default=30, ge=1, le=10000)
+    upload_project_hourly_limit: int = Field(default=100, ge=1, le=10000)
     embedding_provider: str = "fake"
     embedding_model: str = "text-embedding-3-small"
     embedding_api_key: str | None = None

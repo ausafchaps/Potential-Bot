@@ -52,12 +52,12 @@ function harness(responder, options = {}) {
       querySelectorAll: (selector) => selector === ".tab-button" ? tabs
         : tabs.map((tab) => node(`${tab.dataset.tab}Tab`)),
     },
-    localStorage: storage(), sessionStorage: storage(), FormData: class {},
+    localStorage: storage(), sessionStorage: storage(), FormData: class { append() {} },
     URLSearchParams,
-    window: { location: { protocol: "https:", origin: "https://test.example", hash: "", pathname: "/", search: "" }, history: { replaceState() {} }, listeners: {}, addEventListener(name, listener) { this.listeners[name] = listener; }, clearTimeout() {}, setTimeout() {} },
+    window: { location: { protocol: "https:", origin: "https://test.example", hash: "", pathname: "/", search: "" }, history: { replaceState() {} }, confirm: options.confirm || (() => false), listeners: {}, addEventListener(name, listener) { this.listeners[name] = listener; }, clearTimeout() {}, setTimeout() {} },
     fetch: async (url, requestOptions = {}) => {
       const pathname = new URL(url).pathname;
-      calls.push({ pathname, method: requestOptions.method || "GET", body: requestOptions.body ? JSON.parse(requestOptions.body) : null, url });
+      calls.push({ pathname, method: requestOptions.method || "GET", body: typeof requestOptions.body === "string" ? JSON.parse(requestOptions.body) : null, url });
       if (pathname === "/auth/capabilities") return { ok: true, json: async () => options.capabilities || { account_email_enabled: false } };
       const result = await responder(pathname, requestOptions);
       return { ok: result?.error === undefined, status: result?.error || 200,

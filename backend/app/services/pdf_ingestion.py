@@ -5,6 +5,7 @@ from io import BytesIO
 from pypdf import PdfReader
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.models import Document
 from app.services.ingestion import (
     TextPage,
@@ -12,6 +13,7 @@ from app.services.ingestion import (
     create_processing_document,
     fail_document_ingestion,
 )
+from app.services.storage import UploadLimited, check_file_size, check_text_size
 
 SUPPORTED_PDF_CONTENT_TYPES = {"application/pdf"}
 
@@ -27,11 +29,19 @@ class PdfIngestionFailure(Exception):
 
 
 def extract_pdf_pages(raw_content: bytes) -> list[TextPage]:
+    check_file_size(raw_content)
     reader = PdfReader(BytesIO(raw_content))
+    if len(reader.pages) > settings.upload_max_pdf_pages:
+        raise UploadLimited(f"PDF exceeds {settings.upload_max_pdf_pages} pages. "
+                            "Split it into smaller documents.")
     pages: list[TextPage] = []
+    character_count = 0
 
     for index, page in enumerate(reader.pages, start=1):
-        pages.append(TextPage(text=page.extract_text() or "", page_number=index))
+        text = page.extract_text() or ""
+        character_count += len(text)
+        check_text_size(character_count)
+        pages.append(TextPage(text=text, page_number=index))
 
     return pages
 
@@ -44,11 +54,14 @@ def ingest_pdf_document(
     content_type: str,
     raw_content: bytes,
 ) -> Document:
+    check_file_size(raw_content)
     if content_type not in SUPPORTED_PDF_CONTENT_TYPES and not filename.lower().endswith(".pdf"):
         raise UnsupportedPdfDocumentError("Only PDF documents are supported")
 
     try:
         pages = extract_pdf_pages(raw_content)
+    except UploadLimited:
+        raise
     except Exception as exc:
         raise ValueError("PDF could not be read") from exc
 

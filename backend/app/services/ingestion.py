@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session
 
 from app.models import Course, Document, DocumentChunk, DocumentStatus
+from app.services.storage import UploadLimited, check_capacity, check_text_size, lock_storage
 
 DEFAULT_CHUNK_SIZE = 1_200
 DEFAULT_CHUNK_OVERLAP = 150
@@ -76,6 +77,9 @@ def create_processing_document(
     if course is None:
         raise CourseNotFoundError("Course was not found")
 
+    lock_storage(db)
+    check_capacity(db, course.owner_id, documents=1)
+
     document = Document(
         course_id=course_id,
         filename=filename,
@@ -95,20 +99,28 @@ def complete_document_from_pages(
     pages: list[TextPage],
     empty_error_message: str,
 ) -> Document:
+    try:
+        check_text_size(sum(len(page.text) for page in pages))
+    except UploadLimited:
+        db.rollback()
+        raise
+    chunks = [(page.page_number, chunk) for page in pages for chunk in chunk_text(page.text)]
+    storage_bytes = sum(len(chunk.encode("utf-8")) for _, chunk in chunks)
+    course = db.get(Course, document.course_id)
+    check_capacity(db, course.owner_id, text_bytes=storage_bytes)
+    document.storage_bytes = storage_bytes
     chunk_index = 0
-
-    for page in pages:
-        for chunk in chunk_text(page.text):
-            db.add(
-                DocumentChunk(
-                    document_id=document.id,
-                    chunk_index=chunk_index,
-                    text=chunk,
-                    page_number=page.page_number,
-                    token_count=estimate_token_count(chunk),
-                )
+    for page_number, chunk in chunks:
+        db.add(
+            DocumentChunk(
+                document_id=document.id,
+                chunk_index=chunk_index,
+                text=chunk,
+                page_number=page_number,
+                token_count=estimate_token_count(chunk),
             )
-            chunk_index += 1
+        )
+        chunk_index += 1
 
     if chunk_index == 0:
         raise ValueError(empty_error_message)

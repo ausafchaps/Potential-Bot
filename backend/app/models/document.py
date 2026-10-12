@@ -2,7 +2,7 @@ import uuid
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Enum, ForeignKey, Integer, String
+from sqlalchemy import BigInteger, Enum, ForeignKey, Integer, String, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import Uuid
 
@@ -43,6 +43,8 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=False,
     )
     page_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    storage_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0,
+                                             server_default=text("0"))
 
     course: Mapped["Course"] = relationship(back_populates="documents")
     chunks: Mapped[list["DocumentChunk"]] = relationship(
