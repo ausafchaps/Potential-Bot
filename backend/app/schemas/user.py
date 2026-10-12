@@ -15,8 +15,8 @@ class UserCreate(BaseModel):
     @classmethod
     def normalize_email(cls, value: str) -> str:
         normalized = value.strip().lower()
-        if "@" not in normalized:
-            raise ValueError("email must contain @")
+        if "@" not in normalized or any(c.isspace() for c in normalized):
+            raise ValueError("email must contain @ and no whitespace")
         return normalized
 
     @field_validator("display_name")
@@ -33,6 +33,7 @@ class UserResponse(BaseModel):
     email: str
     display_name: str
     is_admin: bool
+    email_verified: bool
     created_at: datetime
     updated_at: datetime
 

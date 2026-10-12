@@ -4,8 +4,8 @@ from pathlib import Path
 from alembic import command
 from alembic.config import Config
 from app.core.config import settings
-from app.models import Course, Flashcard, FlashcardProgress, FlashcardSet, User
-from sqlalchemy import create_engine, delete, event, inspect
+from app.models import Course, Flashcard, FlashcardProgress, FlashcardSet
+from sqlalchemy import create_engine, delete, event, inspect, text
 from sqlalchemy.orm import Session
 
 
@@ -23,9 +23,12 @@ def test_review_migration_preserves_cards_and_cascades_progress(tmp_path, monkey
         connection.execute("PRAGMA foreign_keys=ON")
 
     card_id, user_id = uuid.uuid4(), uuid.uuid4()
+    with engine.begin() as connection:
+        connection.execute(text("INSERT INTO users (id,email,display_name) "
+                                "VALUES (:id,'migration-review@example.com','Student')"),
+                           {"id": user_id.hex})
     with Session(engine) as db:
-        user = User(id=user_id, email="migration-review@example.com", display_name="Student")
-        course = Course(owner=user, title="Saved notes")
+        course = Course(owner_id=user_id, title="Saved notes")
         card_set = FlashcardSet(course=course, topic="topic", difficulty="easy",
                                status="generated", provider="fake")
         db.add(Flashcard(id=card_id, flashcard_set=card_set, position=1,

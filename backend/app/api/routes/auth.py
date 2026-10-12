@@ -1,23 +1,27 @@
 from datetime import UTC
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
 
 from app.api.auth_rate_limit import limit_login_email, limit_login_ip, limit_signup
 from app.api.dependencies import CurrentUser, Database, get_current_session
+from app.api.routes.account_recovery import auto_verification
 from app.models import AuthSession, User
 from app.schemas.ai_usage import AIUsageResponse
 from app.schemas.auth import LoginRequest, SessionResponse
 from app.schemas.user import UserCreate, UserResponse
 from app.services.ai_usage import get_ai_usage
-from app.services.auth import authenticate, create_session
+from app.services.auth import CredentialsChanged, authenticate, create_session
 from app.services.user_course import DuplicateUserEmailError, create_user
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
 
 def session_response(db: Database, user, response: Response) -> SessionResponse:
-    token, session = create_session(db, user)
+    try:
+        token, session = create_session(db, user)
+    except CredentialsChanged as exc:
+        raise HTTPException(401, "Invalid email or password") from exc
     response.headers["Cache-Control"] = "no-store"
     return SessionResponse(
         access_token=token,
@@ -28,12 +32,15 @@ def session_response(db: Database, user, response: Response) -> SessionResponse:
 
 @router.post("/register", response_model=SessionResponse, status_code=201,
              dependencies=[Depends(limit_signup)])
-def register(payload: UserCreate, db: Database, response: Response) -> SessionResponse:
+def register(payload: UserCreate, db: Database, response: Response, request: Request,
+             tasks: BackgroundTasks) -> SessionResponse:
     try:
         user = create_user(db, payload)
     except DuplicateUserEmailError as exc:
         raise HTTPException(409, str(exc)) from exc
-    return session_response(db, user, response)
+    session = session_response(db, user, response)
+    auto_verification(db, user, request, tasks)
+    return session
 
 
 @router.post("/login", response_model=SessionResponse,

@@ -11,6 +11,20 @@ class Settings(BaseSettings):
     app_name: str = "StudyBot"
     environment: str = "local"
     auth_session_hours: int = Field(default=24, ge=1, le=168)
+    email_provider: Literal["disabled", "smtp"] = "disabled"
+    email_from: str = ""
+    smtp_host: str = ""
+    smtp_port: Literal[465, 587] = 465
+    smtp_username: str = ""
+    smtp_password: str = Field(default="", repr=False)
+    smtp_timeout_seconds: float = Field(default=5, gt=0, le=10)
+    public_app_url: str = "http://127.0.0.1:8000"
+    auth_require_email_verification: bool = False
+    auth_reset_minutes: int = Field(default=15, ge=5, le=60)
+    auth_verify_hours: int = Field(default=24, ge=1, le=72)
+    auth_email_ip_limit: int = Field(default=10, ge=1, le=1000)
+    auth_email_address_limit: int = Field(default=3, ge=1, le=100)
+    auth_email_project_daily_limit: int = Field(default=100, ge=1, le=10000)
     auth_login_ip_limit: int = Field(default=30, ge=1, le=10000)
     auth_login_email_limit: int = Field(default=10, ge=1, le=10000)
     auth_login_window_seconds: int = Field(default=900, ge=1, le=86400)
@@ -56,6 +70,19 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production_settings(self) -> Self:
+        parsed_app = urlparse(self.public_app_url)
+        if (parsed_app.scheme not in {"http", "https"} or not parsed_app.hostname
+                or parsed_app.username or parsed_app.password
+                or parsed_app.query or parsed_app.fragment
+                or parsed_app.path not in {"", "/"}):
+            raise ValueError("PUBLIC_APP_URL must be an origin without credentials or path")
+        if self.email_provider == "smtp":
+            if not all([self.smtp_host, self.smtp_username, self.smtp_password, self.email_from]):
+                raise ValueError("SMTP requires a host, username, password, and EMAIL_FROM")
+            if "@" not in self.email_from or any(c in self.email_from for c in "\r\n"):
+                raise ValueError("EMAIL_FROM must be one email address")
+        if self.auth_require_email_verification and self.email_provider == "disabled":
+            raise ValueError("Required email verification needs an email provider")
         if self.environment.strip().lower() != "production":
             return self
 
@@ -73,6 +100,11 @@ class Settings(BaseSettings):
             for parsed in parsed_origins
         ):
             raise ValueError("Production requires explicit HTTPS CORS origins")
+
+        if self.email_provider != "disabled" and (
+            parsed_app.scheme != "https" or parsed_app.hostname in {"localhost", "127.0.0.1", "::1"}
+        ):
+            raise ValueError("Production account links require a public HTTPS PUBLIC_APP_URL")
 
         llm_provider = self.llm_provider.strip().lower()
         if llm_provider not in {"fake", "groq"}:

@@ -49,6 +49,27 @@
               <button type="submit" value="login">Sign in</button>
               <button type="submit" value="register">Create account</button>
             </form>
+            <button id="forgotPasswordButton" type="button" class="secondary">Forgot password?</button>
+            <section id="verificationSection" class="stack" hidden>
+              <p id="verificationStatus" role="status"></p>
+              <button id="resendVerificationButton" type="button">Send verification email</button>
+              <button id="refreshVerificationButton" class="secondary" type="button">Check verification status</button>
+            </section>
+            <section id="recoverySection" class="stack" hidden>
+              <h2 id="recoveryTitle">Account recovery</h2>
+              <p id="recoveryStatus" role="status" aria-live="polite"></p>
+              <form id="forgotPasswordForm" class="stack" hidden>
+                <label>Email <input id="recoveryEmail" type="email" autocomplete="email" required /></label>
+                <button type="submit">Email a reset link</button>
+              </form>
+              <form id="resetPasswordForm" class="stack" hidden>
+                <label>New password <input id="newPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required /></label>
+                <label>Confirm new password <input id="confirmPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required /></label>
+                <button type="submit">Reset password</button>
+              </form>
+              <button id="verifyEmailButton" type="button" hidden>Verify email</button>
+              <button id="closeRecoveryButton" type="button" class="secondary">Back to sign in</button>
+            </section>
           </section>
           <section id="aiUsageSection" class="panel-section" hidden>
             <div class="section-title">

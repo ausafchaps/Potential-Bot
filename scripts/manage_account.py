@@ -32,9 +32,11 @@ def main() -> int:
             if password != getpass.getpass("Confirm password: "):
                 parser.error("Passwords do not match")
             user.password_hash = hash_password(password)
+            user.credential_version += 1
         if args.admin or args.remove_admin:
             user.is_admin = args.admin
         if args.set_password or args.revoke_sessions:
+            db.flush()
             db.execute(delete(AuthSession).where(AuthSession.user_id == user.id))
         db.commit()
         print(f"Updated account: {user.email}")

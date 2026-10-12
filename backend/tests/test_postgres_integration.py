@@ -15,8 +15,9 @@ from app.models import (
     User,
 )
 from app.schemas.flashcard_review import FlashcardReviewCreate
-from app.services import ai_usage, flashcard_review
+from app.services import account_recovery, ai_usage, flashcard_review
 from app.services import auth_rate_limit as limiter
+from app.services.auth import hash_password
 from app.services.auth_rate_limit import AttemptLimit, AuthRateLimited, consume_attempts
 from auth_helpers import register_user
 from fastapi.testclient import TestClient
@@ -27,6 +28,40 @@ pytestmark = pytest.mark.skipif(
     engine.dialect.name != "postgresql",
     reason="PostgreSQL integration test requires a PostgreSQL database",
 )
+
+
+@pytest.mark.parametrize("same_token", [True, False])
+def test_postgres_account_links_are_single_use(monkeypatch, same_token):
+    from urllib.parse import parse_qs, urlsplit
+
+    monkeypatch.setattr(account_recovery.time, "time", lambda: 172800)
+    user_id = uuid.uuid4()
+    with Session(engine) as db:
+        user = User(id=user_id, email=f"reset-{user_id}@example.com", display_name="Reset test",
+                    password_hash=hash_password("original-password-long-enough"))
+        db.add(user)
+        db.commit()
+        codes = [parse_qs(urlsplit(account_recovery.issue_link(db, user, "reset")).fragment)
+                 ["reset"][0] for _ in range(2)]
+
+    def reset(i):
+        with Session(engine) as db:
+            try:
+                account_recovery.consume_link(db, codes[0 if same_token else i % 2],
+                                              "reset", "new-password-long-enough")
+                return True
+            except account_recovery.InvalidAccountLink:
+                return False
+
+    try:
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            assert sum(pool.map(reset, range(8))) == 1
+        with Session(engine) as db:
+            assert db.get(User, user_id).credential_version == 1
+    finally:
+        with Session(engine) as db:
+            db.execute(delete(User).where(User.id == user_id))
+            db.commit()
 
 
 @pytest.mark.parametrize("version", [0, 1])

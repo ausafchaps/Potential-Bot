@@ -33,7 +33,7 @@ class Element {
   }
 }
 
-function harness(responder) {
+function harness(responder, options = {}) {
   const nodes = new Map();
   const node = (id) => {
     if (!nodes.has(id)) nodes.set(id, new Element(id));
@@ -53,11 +53,13 @@ function harness(responder) {
         : tabs.map((tab) => node(`${tab.dataset.tab}Tab`)),
     },
     localStorage: storage(), sessionStorage: storage(), FormData: class {},
-    window: { location: { protocol: "https:", origin: "https://test.example" }, clearTimeout() {}, setTimeout() {} },
-    fetch: async (url, options) => {
+    URLSearchParams,
+    window: { location: { protocol: "https:", origin: "https://test.example", hash: "", pathname: "/", search: "" }, history: { replaceState() {} }, listeners: {}, addEventListener(name, listener) { this.listeners[name] = listener; }, clearTimeout() {}, setTimeout() {} },
+    fetch: async (url, requestOptions = {}) => {
       const pathname = new URL(url).pathname;
-      calls.push({ pathname, method: options.method || "GET", body: options.body ? JSON.parse(options.body) : null });
-      const result = await responder(pathname, options);
+      calls.push({ pathname, method: requestOptions.method || "GET", body: requestOptions.body ? JSON.parse(requestOptions.body) : null, url });
+      if (pathname === "/auth/capabilities") return { ok: true, json: async () => options.capabilities || { account_email_enabled: false } };
+      const result = await responder(pathname, requestOptions);
       return { ok: result?.error === undefined, status: result?.error || 200,
         statusText: "Unavailable", text: async () => JSON.stringify(result?.body ?? result) };
     },
