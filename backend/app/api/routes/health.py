@@ -1,3 +1,6 @@
+import os
+import re
+
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -9,11 +12,15 @@ router = APIRouter()
 
 @router.get("/health")
 def health_check() -> dict[str, str]:
-    return {
+    health = {
         "status": "ok",
         "app": settings.app_name,
         "environment": settings.environment,
     }
+    revision = os.getenv("VERCEL_GIT_COMMIT_SHA", "")
+    if re.fullmatch(r"[0-9a-f]{40}", revision):
+        health["revision"] = revision
+    return health
 
 
 @router.get("/ready")

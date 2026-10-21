@@ -32,6 +32,22 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+def test_postgres_deployment_smoke_cascades_all_temporary_study_data():
+    from app.db.base import Base
+    from sqlalchemy import func, select
+    from test_staging_smoke import serve_api, smoke
+
+    tables = [table for table in Base.metadata.sorted_tables
+              if table.name not in {"ai_usage_buckets", "auth_rate_limits", "storage_lock"}]
+    with Session(engine) as db:
+        before = [db.scalar(select(func.count()).select_from(table)) for table in tables]
+    with TestClient(app) as api, serve_api(api) as base_url:
+        assert smoke.run_smoke_test(base_url, allow_fake_ai=True)["accounts_removed"] == 2
+    with Session(engine) as db:
+        after = [db.scalar(select(func.count()).select_from(table)) for table in tables]
+    assert after == before
+
+
 @pytest.mark.parametrize("scope", ["user_documents", "user_bytes", "project_documents",
                                     "project_bytes"])
 def test_postgres_upload_storage_admission_is_atomic(monkeypatch, scope):

@@ -1,0 +1,65 @@
+name: Staging smoke
+
+on:
+  deployment_status:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Let an active run finish its cleanup before checking a newer deployment.
+concurrency:
+  group: staging-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    if: >-
+      github.repository == 'ausafchaps/Potential-Bot' &&
+      ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+       (github.event_name == 'deployment_status' &&
+        github.event.deployment_status.state == 'success' &&
+        github.event.deployment.environment == 'Production' &&
+        github.event.deployment.creator.login == 'vercel[bot]' &&
+        github.event.deployment_status.creator.login == 'vercel[bot]' &&
+        (github.event.deployment_status.environment_url == 'https://studybot-staging.vercel.app' ||
+         (startsWith(github.event.deployment_status.environment_url, 'https://studybot-staging-') &&
+          endsWith(github.event.deployment_status.environment_url, '-ausaf2.vercel.app')))))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out trusted main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Check deployment matches current main
+        id: revision
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DEPLOYMENT_SHA: ${{ github.event.deployment.sha }}
+        run: |
+          revision=$(git rev-parse HEAD)
+          if [ "$EVENT_NAME" = deployment_status ] && [ "$DEPLOYMENT_SHA" != "$revision" ]; then
+            echo 'Skipping a deployment that is not current main.'
+            echo 'run=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'run=true' >> "$GITHUB_OUTPUT"
+            echo "sha=$revision" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Python
+        if: steps.revision.outputs.run == 'true'
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Check deployed study flow and remove temporary accounts
+        if: steps.revision.outputs.run == 'true'
+        env:
+          EXPECTED_REVISION: ${{ steps.revision.outputs.sha }}
+        run: >-
+          python scripts/staging_smoke.py
+          --expected-revision "$EXPECTED_REVISION"
+          --wait-seconds 300

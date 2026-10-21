@@ -71,6 +71,8 @@ Authentication:
 - `GET /auth/me`
 - `GET /auth/ai-usage` (the signed-in student's remaining AI allowance and reset times)
 - `POST /auth/logout` (revokes the current session)
+- `DELETE /auth/account` (permanent student self-deletion; current password and
+  `confirmation: "delete-my-account"` required; used for smoke-test cleanup)
 
 All coursework and private user endpoints require `Authorization: Bearer <access_token>`.
 Only the owner can access a course and its resources; `/admin/metrics` requires an
@@ -590,11 +592,14 @@ The Render alternative is documented in `docs/deployment/staging-render.md`.
 After deployment, run:
 
 ```powershell
-python scripts/staging_smoke.py --base-url https://studybot-api-staging.onrender.com
+python scripts/staging_smoke.py
 ```
 
-The smoke test verifies liveness, database readiness, user and course creation,
-authentication, text ingestion, grounded answers, citations, persistence, and logout.
+Successful Vercel main deployments trigger an automated check of the canonical
+staging URL. It verifies authentication/privacy, notes, cited answers, quizzes,
+flashcard review, dashboard progress and allowances, using three AI requests.
+Temporary accounts and study data are removed on success or failure. See the
+[smoke-check guide](docs/deployment/staging-smoke.md) for safeguards and reruns.
 
 ## Continuous Integration
 
