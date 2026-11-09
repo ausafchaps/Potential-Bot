@@ -78,13 +78,16 @@ PostgreSQL; the function filesystem is not used for persistent data.
 After deployment, verify `/health`, `/ready`, and the frontend, then run:
 
 ```powershell
-python scripts/staging_smoke.py --base-url https://YOUR-PROJECT.vercel.app
+python scripts/staging_smoke.py
 ```
 
-This creates disposable staging data and checks authentication, ingestion,
-grounded answers, citations, persistence, and logout. Stay within the free plans'
-limits; do not enable paid upgrades. Real provider access needs explicit approval
-for secret storage and sending retrieved study material to the chosen provider.
+The canonical staging URL is checked automatically after successful main
+deployments. The smoke test exercises the study flow with three AI generation
+requests, then deletes its two temporary students and their data. See
+[automated staging smoke checks](staging-smoke.md) for coverage, cleanup,
+revision checks and manual reruns. Stay within the free plans' limits; do not
+enable paid upgrades. Real provider access needs explicit approval for secret
+storage and sending retrieved study material to the chosen provider.
 
 Provider references: [FastAPI](https://vercel.com/docs/frameworks/backend/fastapi),
 [Hobby](https://vercel.com/docs/plans/hobby), and

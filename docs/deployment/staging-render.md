@@ -53,15 +53,10 @@ Expected responses:
 - `/ready` returns `{"status":"ready","database":"available"}`
 - `/docs` loads the FastAPI OpenAPI UI
 
-Run the staging smoke test:
-
-```powershell
-python scripts/staging_smoke.py --base-url https://studybot-api-staging.onrender.com
-```
-
-The smoke test registers an account with a random password, verifies `/auth/me`,
-creates a course, uploads a text document, asks a grounded question, verifies
-citations, fetches the persisted course, and revokes its session with logout.
+The automated smoke runner now targets only the current canonical Vercel staging
+URL and local development servers. See [automated staging smoke checks](staging-smoke.md).
+For a Render deployment, check the health/readiness URLs above and perform the
+learning flow manually; the runner intentionally refuses other remote origins.
 
 Apply migration `20261002_0008` before running this version. Existing accounts
 remain locked until an operator sets their passwords with

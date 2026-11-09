@@ -1,5 +1,5 @@
 from app.core.config import Settings
-from app.db.session import build_engine_options, normalize_database_url
+from app.db.session import build_engine_options, create_database_engine, normalize_database_url
 
 
 def test_normalize_database_url_selects_psycopg_for_managed_postgres_url() -> None:
@@ -32,6 +32,18 @@ def test_sqlite_engine_options_enable_thread_sharing() -> None:
         "pool_pre_ping": True,
         "connect_args": {"check_same_thread": False},
     }
+
+
+def test_sqlite_engine_enforces_cascades_on_every_connection() -> None:
+    config = Settings(_env_file=None, environment="test", database_url="sqlite://")
+    engine = create_database_engine(config)
+    try:
+        for _ in range(2):
+            with engine.connect() as db:
+                assert db.exec_driver_sql("PRAGMA foreign_keys").scalar() == 1
+            engine.dispose()
+    finally:
+        engine.dispose()
 
 
 def test_postgres_engine_options_use_bounded_pool_settings() -> None:

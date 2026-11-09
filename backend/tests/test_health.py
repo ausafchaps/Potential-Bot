@@ -58,3 +58,12 @@ def test_readiness_check_returns_503_for_database_failure(monkeypatch) -> None:
 
     assert response.status_code == 503
     assert response.json() == {"detail": "Database is unavailable"}
+
+
+def test_health_exposes_only_a_valid_deployment_revision(monkeypatch):
+    from app.api.routes.health import health_check
+
+    monkeypatch.setenv("VERCEL_GIT_COMMIT_SHA", "a" * 40)
+    assert health_check()["revision"] == "a" * 40
+    monkeypatch.setenv("VERCEL_GIT_COMMIT_SHA", "invalid")
+    assert "revision" not in health_check()
